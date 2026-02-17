@@ -23,7 +23,7 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/.cache/go-build go mod download
 
 COPY . .
-RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -ldflags "-s -w" -trimpath
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -ldflags "-s -w" -trimpath -o go2nvr
 
 
 # 2. Final image
@@ -47,7 +47,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,t
         libasound2-plugins && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /build/go2rtc /usr/local/bin/
+COPY --from=build /build/go2nvr /usr/local/bin/
 
 EXPOSE 1984 8554 8555 8555/udp
 ENTRYPOINT ["/usr/bin/tini", "--"]
@@ -57,4 +57,4 @@ WORKDIR /config
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,video,utility
 
-CMD ["go2rtc", "-config", "/config/go2rtc.yaml"]
+CMD ["go2nvr", "-config", "/config/go2nvr.yaml"]

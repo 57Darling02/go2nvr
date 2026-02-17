@@ -16,7 +16,9 @@ It extends the core streaming capabilities with a native, deep-integrated record
   - A modern, custom-built web interface for managing cameras.
   - Built-in recordings browser and player.
   - Real-time system status monitoring.
-- **🔧 Simple Configuration**: Easy-to-use YAML configuration (`go2nvr.yaml`).
+- **🔧 Flexible Configuration**: 
+  1. **Web UI**: Configure most features directly in the browser.
+  2. **YAML**: Full access to advanced features via `go2nvr.yaml`.
 
 ## Installation
 
@@ -35,9 +37,27 @@ go build -ldflags "-s -w" -o go2nvr
 
 ## Configuration
 
-Go2NVR uses `go2nvr.yaml` for configuration.
+Go2NVR offers two ways to configure your system.
 
-### Minimal Example
+### 1. Web UI (Recommended)
+
+For most users, the Web UI provides all necessary controls.
+Access the dashboard at `http://localhost:1984`.
+- **Add Streams**: Manage your camera connections.
+- **Recording Rules**: Set up continuous or motion-based recording.
+- **Playback**: Browse and view recorded footage.
+
+### 2. Advanced YAML Configuration
+
+For advanced users requiring the full power of the underlying streaming engine, you can edit the `go2nvr.yaml` file. This file supports **all configuration options** available in [go2rtc](https://github.com/AlexxIT/go2rtc).
+
+You can edit this file directly or via the **Config Editor** in the Web UI.
+
+> **Note**: After modifying the configuration via YAML (file or Web UI), you must **restart the server** for changes to take effect.
+
+Refer to the [go2rtc Configuration Documentation](https://go2rtc.org/#configuration) for a complete list of supported streams, protocols, and advanced settings.
+
+#### Minimal Example (`go2nvr.yaml`)
 
 ```yaml
 streams:
@@ -53,6 +73,25 @@ record:
       segment: 60       # Segment duration in seconds
 ```
 
+## Recording System
+
+The recording module turns the streaming server into a fully-fledged NVR. It operates on a **dual-mode philosophy**:
+
+### 1. Universal Manual Recording
+Any stream can be recorded instantly via the API or Web UI button, **without any prior configuration**. This is useful for capturing specific events on demand.
+
+### 2. Automated Strategies
+You can define persistent recording rules for your cameras.
+
+| Mode | Description |
+| :--- | :--- |
+| **Always (`all`)** | **Continuous 24/7 Recording**. The system records everything. Files are automatically segmented based on the `segment` duration (default: 600s). |
+| **Motion (`motion`)** | **Smart Event Recording**. The system buffers video in memory and only writes to disk when motion is detected. <br>• **Pre-buffer**: Captures seconds *before* the motion event (never miss the start).<br>• **Post-buffer**: Continues recording for a set time after motion stops. |
+
+### Storage & Retention
+- **Structure**: Recordings are organized by `stream_name/YYYY-MM-DD/HH-MM-SS.mp4`.
+- **Cleanup**: An automatic maintenance task runs hourly to delete recordings older than your configured `retention` period (in days).
+
 ## Usage
 
 Run the server:
@@ -60,8 +99,6 @@ Run the server:
 ```bash
 ./go2nvr
 ```
-
-Access the dashboard at `http://localhost:1984`.
 
 ## Project Structure
 

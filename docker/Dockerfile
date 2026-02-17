@@ -23,7 +23,7 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/.cache/go-build go mod download
 
 COPY . .
-RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -ldflags "-s -w" -trimpath
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -ldflags "-s -w" -trimpath -o go2nvr
 
 
 # 2. Final image
@@ -45,11 +45,11 @@ RUN if [ "${TARGETARCH}" = "amd64" ]; then apk add --no-cache libva-intel-driver
 # Hardware: AMD and NVidia VDPAU (not sure about this)
 # RUN libva-vdpau-driver mesa-vdpau-gallium (+150MB total)
 
-COPY --from=build /build/go2rtc /usr/local/bin/
+COPY --from=build /build/go2nvr /usr/local/bin/
 
 EXPOSE 1984 8554 8555 8555/udp
 ENTRYPOINT ["/sbin/tini", "--"]
 VOLUME /config
 WORKDIR /config
 
-CMD ["go2rtc", "-config", "/config/go2rtc.yaml"]
+CMD ["go2nvr", "-config", "/config/go2nvr.yaml"]

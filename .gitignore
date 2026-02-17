@@ -1,7 +1,7 @@
 .idea/
 .tmp/
 
-go2rtc.yaml
+go2nvr.yaml
 go2rtc.json
 
 go2rtc_freebsd*

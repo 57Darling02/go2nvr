@@ -1,0 +1,4 @@
+#!/bin/sh
+pkill -9 go2nvr 2>/dev/null
+
+exec /usr/local/bin/go2nvr -config /etc/go2nvr.yaml 2>&1
