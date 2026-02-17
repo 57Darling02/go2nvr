@@ -42,7 +42,7 @@ func Init() {
 	revision, vcsTime := readRevisionTime()
 
 	if version {
-		fmt.Printf("go2rtc version %s (%s) %s/%s\n", Version, revision, runtime.GOOS, runtime.GOARCH)
+		fmt.Printf("go2nvr version %s (%s) %s/%s\n", Version, revision, runtime.GOOS, runtime.GOARCH)
 		os.Exit(0)
 	}
 
@@ -62,7 +62,7 @@ func Init() {
 		os.Exit(0)
 	}
 
-	UserAgent = "go2rtc/" + Version
+	UserAgent = "go2nvr/" + Version
 
 	Info["version"] = Version
 	Info["revision"] = revision
@@ -71,7 +71,7 @@ func Init() {
 	initLogger()
 
 	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
-	Logger.Info().Str("version", Version).Str("platform", platform).Str("revision", revision).Msg("go2rtc")
+	Logger.Info().Str("version", Version).Str("platform", platform).Str("revision", revision).Msg("go2nvr")
 	Logger.Debug().Str("version", runtime.Version()).Str("vcs.time", vcsTime).Msg("build")
 
 	if ConfigPath != "" {

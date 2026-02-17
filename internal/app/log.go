@@ -50,7 +50,7 @@ func initLogger() {
 		writer = os.Stdout
 	case "file":
 		if path == "" {
-			path = "go2rtc.log"
+			path = "go2nvr.log"
 		}
 		// if fail - only MemoryLog will be available
 		writer, _ = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
