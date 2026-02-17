@@ -27,94 +27,94 @@ jobs:
 
       - name: Build go2nvr_win64
         env: { GOOS: windows, GOARCH: amd64 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr.exe
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_win64.exe
       - name: Upload go2nvr_win64
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_win64, path: go2nvr.exe }
+        with: { name: go2nvr_win64, path: go2nvr_win64.exe }
 
       - name: Build go2nvr_win32
         env: { GOOS: windows, GOARCH: 386 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr.exe
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_win32.exe
       - name: Upload go2nvr_win32
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_win32, path: go2nvr.exe }
+        with: { name: go2nvr_win32, path: go2nvr_win32.exe }
 
       - name: Build go2nvr_win_arm64
         env: { GOOS: windows, GOARCH: arm64 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr.exe
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_win_arm64.exe
       - name: Upload go2nvr_win_arm64
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_win_arm64, path: go2nvr.exe }
+        with: { name: go2nvr_win_arm64, path: go2nvr_win_arm64.exe }
 
       - name: Build go2nvr_linux_amd64
         env: { GOOS: linux, GOARCH: amd64 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_linux_amd64
       - name: Upload go2nvr_linux_amd64
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_linux_amd64, path: go2nvr }
+        with: { name: go2nvr_linux_amd64, path: go2nvr_linux_amd64 }
 
       - name: Build go2nvr_linux_i386
         env: { GOOS: linux, GOARCH: 386 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_linux_i386
       - name: Upload go2nvr_linux_i386
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_linux_i386, path: go2nvr }
+        with: { name: go2nvr_linux_i386, path: go2nvr_linux_i386 }
 
       - name: Build go2nvr_linux_arm64
         env: { GOOS: linux, GOARCH: arm64 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_linux_arm64
       - name: Upload go2nvr_linux_arm64
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_linux_arm64, path: go2nvr }
+        with: { name: go2nvr_linux_arm64, path: go2nvr_linux_arm64 }
 
       - name: Build go2nvr_linux_arm
         env: { GOOS: linux, GOARCH: arm, GOARM: 7 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_linux_arm
       - name: Upload go2nvr_linux_arm
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_linux_arm, path: go2nvr }
+        with: { name: go2nvr_linux_arm, path: go2nvr_linux_arm }
 
       - name: Build go2nvr_linux_armv6
         env: { GOOS: linux, GOARCH: arm, GOARM: 6 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_linux_armv6
       - name: Upload go2nvr_linux_armv6
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_linux_armv6, path: go2nvr }
+        with: { name: go2nvr_linux_armv6, path: go2nvr_linux_armv6 }
 
       - name: Build go2nvr_linux_mipsel
         env: { GOOS: linux, GOARCH: mipsle }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_linux_mipsel
       - name: Upload go2nvr_linux_mipsel
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_linux_mipsel, path: go2nvr }
+        with: { name: go2nvr_linux_mipsel, path: go2nvr_linux_mipsel }
 
       - name: Build go2nvr_mac_amd64
         env: { GOOS: darwin, GOARCH: amd64 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_mac_amd64
       - name: Upload go2nvr_mac_amd64
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_mac_amd64, path: go2nvr }
+        with: { name: go2nvr_mac_amd64, path: go2nvr_mac_amd64 }
 
       - name: Build go2nvr_mac_arm64
         env: { GOOS: darwin, GOARCH: arm64 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_mac_arm64
       - name: Upload go2nvr_mac_arm64
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_mac_arm64, path: go2nvr }
+        with: { name: go2nvr_mac_arm64, path: go2nvr_mac_arm64 }
 
       - name: Build go2rtc_freebsd_amd64
         env: { GOOS: freebsd, GOARCH: amd64 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_freebsd_amd64
       - name: Upload go2rtc_freebsd_amd64
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_freebsd_amd64, path: go2nvr }
+        with: { name: go2nvr_freebsd_amd64, path: go2nvr_freebsd_amd64 }
 
       - name: Build go2rtc_freebsd_arm64
         env: { GOOS: freebsd, GOARCH: arm64 }
-        run: go build -ldflags "-s -w" -trimpath -o go2nvr
+        run: go build -ldflags "-s -w" -trimpath -o go2nvr_freebsd_arm64
       - name: Upload go2rtc_freebsd_arm64
         uses: actions/upload-artifact@v4
-        with: { name: go2nvr_freebsd_arm64, path: go2nvr }
+        with: { name: go2nvr_freebsd_arm64, path: go2nvr_freebsd_arm64 }
 
       - name: Publish Release
         uses: softprops/action-gh-release@v2
@@ -122,4 +122,5 @@ jobs:
         with:
           files: |
             go2nvr*
+
 
