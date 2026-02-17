@@ -18,10 +18,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/mpegts"
-	"github.com/AlexxIT/go2rtc/pkg/pcm"
-	"github.com/AlexxIT/go2rtc/pkg/tcp"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/mpegts"
+	"github.com/57Darling02/go2nvr/pkg/pcm"
+	"github.com/57Darling02/go2nvr/pkg/tcp"
 )
 
 // Deprecated: should be rewritten to core.Connection
@@ -232,7 +232,7 @@ func (c *Client) Handle() error {
 			if pkt.PayloadType == mpegts.StreamTypePCMUTapo {
 				// TODO: rewrite this part in the future
 				// Some cameras in the new firmware began to use PCMU/16000.
-				// https://github.com/AlexxIT/go2rtc/issues/1954
+				// https://github.com/57Darling02/go2nvr/issues/1954
 				// I don't know why Tapo considers this an improvement. The codec is no better than the previous one.
 				// Unfortunately, we don't know in advance what codec the camera will use.
 				// Therefore, it's easier to transcode to a standard codec that all Tapo cameras have.

@@ -1,6 +1,6 @@
 # Video4Linux
 
-[`new in v1.9.9`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.9)
+[`new in v1.9.9`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.9)
 
 What you should to know about [V4L2](https://en.wikipedia.org/wiki/Video4Linux):
 

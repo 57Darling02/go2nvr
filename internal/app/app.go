@@ -17,7 +17,7 @@ var (
 	Info       = make(map[string]any)
 )
 
-const usage = `Usage of go2rtc:
+const usage = `Usage of go2nvr:
 
   -c, --config   Path to config file or config string as YAML or JSON, support multiple
   -d, --daemon   Run in background

@@ -2,15 +2,15 @@
 
 ## WebRTC Client
 
-[`new in v1.3.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.3.0)
+[`new in v1.3.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.3.0)
 
 This source type supports four connection formats.
 
 ### Creality
 
-[`new in v1.9.10`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.10)
+[`new in v1.9.10`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.10)
 
-[Creality](https://www.creality.com/) 3D printer camera. Read more [here](https://github.com/AlexxIT/go2rtc/issues/1600).
+[Creality](https://www.creality.com/) 3D printer camera. Read more [here](https://github.com/57Darling02/go2nvr/issues/1600).
 
 ```yaml
 streams:
@@ -28,7 +28,7 @@ streams:
 
 ### Kinesis
 
-[`new in v1.6.1`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.6.1)
+[`new in v1.6.1`](https://github.com/57Darling02/go2nvr/releases/tag/v1.6.1)
 
 Supports [Amazon Kinesis Video Streams](https://aws.amazon.com/kinesis/video-streams/), using WebRTC protocol. You need to specify the signaling WebSocket URL with all credentials in query params, `client_id` and `ice_servers` list in [JSON format](https://developer.mozilla.org/en-US/docs/Web/API/RTCIceServer).
 
@@ -41,7 +41,7 @@ streams:
 
 ### OpenIPC
 
-[`new in v1.7.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.7.0)
+[`new in v1.7.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.7.0)
 
 Cameras on open-source [OpenIPC](https://openipc.org/) firmware.
 
@@ -70,7 +70,7 @@ streams:
 
 ### Wyze
 
-[`new in v1.6.1`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.6.1)
+[`new in v1.6.1`](https://github.com/57Darling02/go2nvr/releases/tag/v1.6.1)
 
 Legacy method to connect to [Wyze](https://www.wyze.com/) cameras using WebRTC protocol via [docker-wyze-bridge](https://github.com/mrlt8/docker-wyze-bridge). For native P2P support without docker-wyze-bridge, see [Source: Wyze](../wyze/README.md).
 
@@ -235,7 +235,7 @@ webrtc:
 
 ### Ingest: Browser
 
-[`new in v1.3.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.3.0)
+[`new in v1.3.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.3.0)
 
 You can turn the browser of any PC or mobile into an IP camera with support for video and two-way audio. Or even broadcast your PC screen:
 
@@ -247,7 +247,7 @@ You can turn the browser of any PC or mobile into an IP camera with support for 
 
 ### Ingest: WHIP
 
-[`new in v1.3.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.3.0)
+[`new in v1.3.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.3.0)
 
 You can use **OBS Studio** or any other broadcast software with [WHIP](https://www.ietf.org/archive/id/draft-ietf-wish-whip-01.html) protocol support. This standard has not yet been approved. But you can download OBS Studio [dev version](https://github.com/obsproject/obs-studio/actions/runs/3969201209):
 

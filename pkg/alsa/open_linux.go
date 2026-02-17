@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/AlexxIT/go2rtc/pkg/alsa/device"
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/alsa/device"
+	"github.com/57Darling02/go2nvr/pkg/core"
 )
 
 func Open(rawURL string) (core.Producer, error) {

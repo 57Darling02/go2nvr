@@ -7,11 +7,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/AlexxIT/go2rtc/internal/app"
-	"github.com/AlexxIT/go2rtc/internal/streams"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/rtsp"
-	"github.com/AlexxIT/go2rtc/pkg/tcp"
+	"github.com/57Darling02/go2nvr/internal/app"
+	"github.com/57Darling02/go2nvr/internal/streams"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/rtsp"
+	"github.com/57Darling02/go2nvr/pkg/tcp"
 	"github.com/rs/zerolog"
 )
 

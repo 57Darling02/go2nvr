@@ -19,7 +19,7 @@ streams:
 
 ## RTMP Server
 
-[`new in v1.8.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.8.0)
+[`new in v1.8.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.8.0)
 
 Streaming output stream in `rtmp` format:
 

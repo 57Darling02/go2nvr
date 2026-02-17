@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/AlexxIT/go2rtc/pkg/hap/tlv8"
+	"github.com/57Darling02/go2nvr/pkg/hap/tlv8"
 )
 
 // Character - Aqara props order

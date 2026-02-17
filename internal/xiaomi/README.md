@@ -1,6 +1,6 @@
 # Xiaomi Mi Home
 
-[`new in v1.9.13`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.13)
+[`new in v1.9.13`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.13)
 
 This source allows you to view cameras from the [Xiaomi Mi Home](https://home.mi.com/) ecosystem.
 
@@ -15,7 +15,7 @@ The `tutk` protocol is the worst thing that's ever happened to the P2P world. It
 
 **Important:**
 
-1. **Not all cameras are supported**. The list of supported cameras is collected in [this issue](https://github.com/AlexxIT/go2rtc/issues/1982).
+1. **Not all cameras are supported**. The list of supported cameras is collected in [this issue](https://github.com/57Darling02/go2nvr/issues/1982).
 2. Each time you connect to the camera, you need Internet access to obtain encryption keys.
 3. Connection to the camera is local only.
 

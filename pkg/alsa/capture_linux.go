@@ -1,9 +1,9 @@
 package alsa
 
 import (
-	"github.com/AlexxIT/go2rtc/pkg/alsa/device"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/pcm"
+	"github.com/57Darling02/go2nvr/pkg/alsa/device"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/pcm"
 	"github.com/pion/rtp"
 )
 

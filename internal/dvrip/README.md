@@ -1,6 +1,6 @@
 # DVR-IP
 
-[`new in v1.2.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.2.0)
+[`new in v1.2.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.2.0)
 
 Private format from DVR-IP NVR, NetSurveillance, Sofia protocol (NETsurveillance ActiveX plugin XMeye SDK).
 

@@ -1,6 +1,6 @@
 # TP-Link Tapo
 
-[`new in v1.2.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.2.0)
+[`new in v1.2.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.2.0)
 
 [TP-Link Tapo](https://www.tapo.com/) proprietary camera protocol with **two-way audio** support.
 
@@ -32,7 +32,7 @@ echo -n "cloud password" | shasum -a 256 | awk '{print toupper($0)}'
 
 ## TP-Link Kasa
 
-[`new in v1.7.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.7.0)
+[`new in v1.7.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.7.0)
 
 > [!NOTE]
 > This source should be moved to separate module. Because it's source code not related to Tapo.
@@ -51,9 +51,9 @@ Tested: KD110, KC200, KC401, KC420WS, EC71.
 
 ## TP-Link Vigi
 
-[`new in v1.9.8`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.8)
+[`new in v1.9.8`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.8)
 
-[TP-Link VIGI](https://www.vigi.com/) cameras. These are cameras from a different sub-brand, but the format is very similar to Tapo. Only the authorization is different. Read more [here](https://github.com/AlexxIT/go2rtc/issues/1470).
+[TP-Link VIGI](https://www.vigi.com/) cameras. These are cameras from a different sub-brand, but the format is very similar to Tapo. Only the authorization is different. Read more [here](https://github.com/57Darling02/go2nvr/issues/1470).
 
 ```yaml
 streams:

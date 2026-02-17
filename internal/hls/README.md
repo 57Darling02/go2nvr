@@ -1,6 +1,6 @@
 # HLS
 
-[`new in v1.1.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.1.0)
+[`new in v1.1.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.1.0)
 
 [HLS](https://en.wikipedia.org/wiki/HTTP_Live_Streaming) is the worst technology for real-time streaming. 
 It can only be useful on devices that do not support more modern technology, like [WebRTC](../webrtc/README.md), [MP4](../mp4/README.md).

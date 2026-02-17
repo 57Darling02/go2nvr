@@ -1,8 +1,8 @@
 package srtp
 
 import (
-	"github.com/AlexxIT/go2rtc/internal/app"
-	"github.com/AlexxIT/go2rtc/pkg/srtp"
+	"github.com/57Darling02/go2nvr/internal/app"
+	"github.com/57Darling02/go2nvr/pkg/srtp"
 )
 
 func Init() {

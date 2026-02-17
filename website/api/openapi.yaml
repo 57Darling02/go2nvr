@@ -4,7 +4,7 @@ info:
   title: go2rtc
   version: 1.9.13
   license: { name: MIT,url: https://opensource.org/licenses/MIT }
-  contact: { url: https://github.com/AlexxIT/go2rtc }
+  contact: { url: https://github.com/57Darling02/go2nvr }
   description: |
     Ultimate camera streaming application with support RTSP, RTMP, HTTP-FLV, WebRTC, MSE, HLS, MP4, MJPEG, HomeKit, FFmpeg, etc.
 
@@ -13,11 +13,11 @@ servers:
 
 tags:
   - name: Application
-    description: "[Module: API](https://github.com/AlexxIT/go2rtc#module-api)"
+    description: "[Module: API](https://github.com/57Darling02/go2nvr#module-api)"
   - name: Config
-    description: "[Configuration](https://github.com/AlexxIT/go2rtc#configuration)"
+    description: "[Configuration](https://github.com/57Darling02/go2nvr#configuration)"
   - name: Streams list
-    description: "[Module: Streams](https://github.com/AlexxIT/go2rtc#module-streams)"
+    description: "[Module: Streams](https://github.com/57Darling02/go2nvr#module-streams)"
   - name: Consume stream
   - name: HLS
   - name: Snapshot
@@ -29,7 +29,7 @@ tags:
   - name: ONVIF
   - name: RTSPtoWebRTC
   - name: WebTorrent
-    description: "[Module: WebTorrent](https://github.com/AlexxIT/go2rtc#module-webtorrent)"
+    description: "[Module: WebTorrent](https://github.com/57Darling02/go2nvr#module-webtorrent)"
   - name: FFmpeg
   - name: Debug
 
@@ -279,7 +279,7 @@ paths:
           description: ""
     post:
       summary: Send stream from source to destination
-      description: "[Stream to camera](https://github.com/AlexxIT/go2rtc#stream-to-camera)"
+      description: "[Stream to camera](https://github.com/57Darling02/go2nvr#stream-to-camera)"
       tags: [ Streams list ]
       parameters:
         - name: src
@@ -421,7 +421,7 @@ paths:
   /api/webrtc?src={src}:
     post:
       summary: Get stream in WebRTC format (WHEP)
-      description: "[Module: WebRTC](https://github.com/AlexxIT/go2rtc#module-webrtc)"
+      description: "[Module: WebRTC](https://github.com/57Darling02/go2nvr#module-webrtc)"
       tags: [ Consume stream ]
       parameters:
         - $ref: "#/components/parameters/stream_src_path"
@@ -450,7 +450,7 @@ paths:
   /api/stream.mp4?src={src}:
     get:
       summary: Get stream in MP4 format (HTTP progressive)
-      description: "[Module: MP4](https://github.com/AlexxIT/go2rtc#module-mp4)"
+      description: "[Module: MP4](https://github.com/57Darling02/go2nvr#module-mp4)"
       tags: [ Consume stream ]
       parameters:
         - $ref: "#/components/parameters/stream_src_path"
@@ -487,7 +487,7 @@ paths:
   /api/stream.m3u8?src={src}:
     get:
       summary: Get stream in HLS format
-      description: "[Module: HLS](https://github.com/AlexxIT/go2rtc#module-hls)"
+      description: "[Module: HLS](https://github.com/57Darling02/go2nvr#module-hls)"
       tags: [ Consume stream, HLS ]
       parameters:
         - $ref: "#/components/parameters/stream_src_path"
@@ -558,7 +558,7 @@ paths:
   /api/stream.mjpeg?src={src}:
     get:
       summary: Get stream in MJPEG format
-      description: "[Module: MJPEG](https://github.com/AlexxIT/go2rtc#module-mjpeg)"
+      description: "[Module: MJPEG](https://github.com/57Darling02/go2nvr#module-mjpeg)"
       tags: [ Consume stream ]
       parameters:
         - $ref: "#/components/parameters/stream_src_path"
@@ -570,7 +570,7 @@ paths:
   /api/stream.ascii?src={src}:
     get:
       summary: Get stream in ASCII-art format (ANSI escape codes)
-      description: "[Module: MJPEG](https://github.com/AlexxIT/go2rtc#module-mjpeg)"
+      description: "[Module: MJPEG](https://github.com/57Darling02/go2nvr#module-mjpeg)"
       tags: [ Consume stream ]
       parameters:
         - $ref: "#/components/parameters/stream_src_path"
@@ -656,7 +656,7 @@ paths:
   /api/frame.jpeg?src={src}:
     get:
       summary: Get snapshot in JPEG format
-      description: "[Module: MJPEG](https://github.com/AlexxIT/go2rtc#module-mjpeg)"
+      description: "[Module: MJPEG](https://github.com/57Darling02/go2nvr#module-mjpeg)"
       tags: [ Snapshot ]
       parameters:
         - $ref: "#/components/parameters/stream_src_path"
@@ -694,7 +694,7 @@ paths:
   /api/frame.mp4?src={src}:
     get:
       summary: Get snapshot in MP4 format
-      description: "[Module: MP4](https://github.com/AlexxIT/go2rtc#module-mp4)"
+      description: "[Module: MP4](https://github.com/57Darling02/go2nvr#module-mp4)"
       tags: [ Snapshot ]
       parameters:
         - $ref: "#/components/parameters/stream_src_path"
@@ -715,7 +715,7 @@ paths:
   /api/webrtc?dst={dst}:
     post:
       summary: Post stream in WebRTC format (WHIP)
-      description: "[Incoming: WebRTC/WHIP](https://github.com/AlexxIT/go2rtc#incoming-webrtcwhip)"
+      description: "[Incoming: WebRTC/WHIP](https://github.com/57Darling02/go2nvr#incoming-webrtcwhip)"
       tags: [ Produce stream ]
       parameters:
         - $ref: "#/components/parameters/stream_dst_path"
@@ -746,7 +746,7 @@ paths:
   /api/stream.flv?dst={dst}:
     post:
       summary: Post stream in FLV format
-      description: "[Incoming sources](https://github.com/AlexxIT/go2rtc#incoming-sources)"
+      description: "[Incoming sources](https://github.com/57Darling02/go2nvr#incoming-sources)"
       tags: [ Produce stream ]
       parameters:
         - $ref: "#/components/parameters/stream_dst_path"
@@ -757,7 +757,7 @@ paths:
   /api/stream.ts?dst={dst}:
     post:
       summary: Post stream in MPEG-TS format
-      description: "[Incoming sources](https://github.com/AlexxIT/go2rtc#incoming-sources)"
+      description: "[Incoming sources](https://github.com/57Darling02/go2nvr#incoming-sources)"
       tags: [ Produce stream ]
       parameters:
         - $ref: "#/components/parameters/stream_dst_path"
@@ -768,7 +768,7 @@ paths:
   /api/stream.mjpeg?dst={dst}:
     post:
       summary: Post stream in MJPEG format
-      description: "[Incoming sources](https://github.com/AlexxIT/go2rtc#incoming-sources)"
+      description: "[Incoming sources](https://github.com/57Darling02/go2nvr#incoming-sources)"
       tags: [ Produce stream ]
       parameters:
         - $ref: "#/components/parameters/stream_dst_path"
@@ -826,7 +826,7 @@ paths:
   /api/dvrip:
     get:
       summary: DVRIP cameras discovery
-      description: "[Source: DVRIP](https://github.com/AlexxIT/go2rtc#source-dvrip)"
+      description: "[Source: DVRIP](https://github.com/57Darling02/go2nvr#source-dvrip)"
       tags: [ Discovery ]
       responses:
         "200": { $ref: "#/components/responses/discovery" }
@@ -834,7 +834,7 @@ paths:
   /api/ffmpeg/devices:
     get:
       summary: FFmpeg USB devices discovery
-      description: "[Source: FFmpeg Device](https://github.com/AlexxIT/go2rtc#source-ffmpeg-device)"
+      description: "[Source: FFmpeg Device](https://github.com/57Darling02/go2nvr#source-ffmpeg-device)"
       tags: [ Discovery ]
       responses:
         "200": { $ref: "#/components/responses/discovery" }
@@ -842,7 +842,7 @@ paths:
   /api/ffmpeg/hardware:
     get:
       summary: FFmpeg hardware transcoding discovery
-      description: "[Hardware acceleration](https://github.com/AlexxIT/go2rtc/wiki/Hardware-acceleration)"
+      description: "[Hardware acceleration](https://github.com/57Darling02/go2nvr/wiki/Hardware-acceleration)"
       tags: [ Discovery ]
       responses:
         "200": { $ref: "#/components/responses/discovery" }
@@ -927,7 +927,7 @@ paths:
   /api/hass:
     get:
       summary: Home Assistant cameras discovery
-      description: "[Source: Hass](https://github.com/AlexxIT/go2rtc#source-hass)"
+      description: "[Source: Hass](https://github.com/57Darling02/go2nvr#source-hass)"
       tags: [ Discovery ]
       responses:
         "200": { $ref: "#/components/responses/discovery" }
@@ -936,7 +936,7 @@ paths:
   /api/discovery/homekit:
     get:
       summary: HomeKit cameras discovery
-      description: "[Source: HomeKit](https://github.com/AlexxIT/go2rtc#source-homekit)"
+      description: "[Source: HomeKit](https://github.com/57Darling02/go2nvr#source-homekit)"
       tags: [ Discovery ]
       responses:
         "200": { $ref: "#/components/responses/discovery" }
@@ -968,7 +968,7 @@ paths:
   /api/onvif:
     get:
       summary: ONVIF cameras discovery
-      description: "[Source: ONVIF](https://github.com/AlexxIT/go2rtc#source-onvif)"
+      description: "[Source: ONVIF](https://github.com/57Darling02/go2nvr#source-onvif)"
       tags: [ Discovery ]
       parameters:
         - name: src
@@ -983,7 +983,7 @@ paths:
   /api/roborock:
     get:
       summary: Roborock vacuums discovery (requires prior auth)
-      description: "[Source: Roborock](https://github.com/AlexxIT/go2rtc#source-roborock)"
+      description: "[Source: Roborock](https://github.com/57Darling02/go2nvr#source-roborock)"
       tags: [ Discovery ]
       responses:
         "200": { $ref: "#/components/responses/discovery" }

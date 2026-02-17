@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/core"
 )
 
 // DecodeConfig - extract profile, SPS and PPS from MPEG4 config

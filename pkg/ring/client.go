@@ -7,8 +7,8 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/webrtc"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/webrtc"
 	"github.com/google/uuid"
 	pion "github.com/pion/webrtc/v4"
 )

@@ -26,9 +26,9 @@ streams:
 ### Recommendations
 
 - **Amcrest Doorbell** users may want to disable two-way audio, because with an active stream, you won't have a working call button. You need to add `#backchannel=0` to the end of your RTSP link in YAML config file
-- **Dahua Doorbell** users may want to change [audio codec](https://github.com/AlexxIT/go2rtc/issues/49#issuecomment-2127107379) for proper two-way audio. Make sure not to request backchannel multiple times by adding `#backchannel=0` to other stream sources of the same doorbell. The `unicast=true&proto=Onvif` is preferred for two-way audio as this makes the doorbell accept multiple codecs for the incoming audio
+- **Dahua Doorbell** users may want to change [audio codec](https://github.com/57Darling02/go2nvr/issues/49#issuecomment-2127107379) for proper two-way audio. Make sure not to request backchannel multiple times by adding `#backchannel=0` to other stream sources of the same doorbell. The `unicast=true&proto=Onvif` is preferred for two-way audio as this makes the doorbell accept multiple codecs for the incoming audio
 - **Reolink** users may want NOT to use RTSP protocol at all, some camera models have a very awful, unusable stream implementation
-- **Ubiquiti UniFi** users may want to disable HTTPS verification. Use `rtspx://` prefix instead of `rtsps://`. And don't use `?enableSrtp` [suffix](https://github.com/AlexxIT/go2rtc/issues/81)
+- **Ubiquiti UniFi** users may want to disable HTTPS verification. Use `rtspx://` prefix instead of `rtsps://`. And don't use `?enableSrtp` [suffix](https://github.com/57Darling02/go2nvr/issues/81)
 - **TP-Link Tapo** users may skip login and password, because go2rtc supports login [without them](https://drmnsamoliu.github.io/video.html)
 - If your camera has two RTSP links, you can add both as sources. This is useful when streams have different codecs, for example AAC audio with main stream and PCMU/PCMA audio with second stream
 - If the stream from your camera is glitchy, try using [ffmpeg source](../ffmpeg/README.md). It will not add CPU load if you don't use transcoding

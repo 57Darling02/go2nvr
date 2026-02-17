@@ -1,6 +1,6 @@
 # Exec
 
-Exec source can run any external application and expect data from it. Two transports are supported - **pipe** ([`new in v1.5.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.5.0)) and **RTSP**.
+Exec source can run any external application and expect data from it. Two transports are supported - **pipe** ([`new in v1.5.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.5.0)) and **RTSP**.
 
 If you want to use **RTSP** transport, the command must contain the `{output}` argument in any place. On launch, it will be replaced by the local address of the RTSP server.
 

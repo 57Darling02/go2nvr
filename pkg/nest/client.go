@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/rtsp"
-	"github.com/AlexxIT/go2rtc/pkg/webrtc"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/rtsp"
+	"github.com/57Darling02/go2nvr/pkg/webrtc"
 	pion "github.com/pion/webrtc/v4"
 )
 

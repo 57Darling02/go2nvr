@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/core"
 )
 
 func (c *Conn) GetTrack(media *core.Media, codec *core.Codec) (*core.Receiver, error) {

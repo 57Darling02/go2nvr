@@ -1,6 +1,6 @@
 # TP-Link Kasa
 
-[`new in v1.7.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.7.0)
+[`new in v1.7.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.7.0)
 
 [TP-Link Kasa](https://www.kasasmart.com/) non-standard protocol [more info](https://medium.com/@hu3vjeen/reverse-engineering-tp-link-kc100-bac4641bf1cd).
 

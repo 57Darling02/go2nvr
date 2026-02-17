@@ -1,7 +1,7 @@
 package roborock
 
 import (
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/core"
 )
 
 func (c *Client) GetMedias() []*core.Media {

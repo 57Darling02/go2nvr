@@ -1,8 +1,8 @@
 package multitrans
 
 import (
-	"github.com/AlexxIT/go2rtc/internal/streams"
-	"github.com/AlexxIT/go2rtc/pkg/multitrans"
+	"github.com/57Darling02/go2nvr/internal/streams"
+	"github.com/57Darling02/go2nvr/pkg/multitrans"
 )
 
 func Init() {

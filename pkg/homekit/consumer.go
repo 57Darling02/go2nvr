@@ -7,11 +7,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/h264"
-	"github.com/AlexxIT/go2rtc/pkg/hap/camera"
-	"github.com/AlexxIT/go2rtc/pkg/opus"
-	"github.com/AlexxIT/go2rtc/pkg/srtp"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/h264"
+	"github.com/57Darling02/go2nvr/pkg/hap/camera"
+	"github.com/57Darling02/go2nvr/pkg/opus"
+	"github.com/57Darling02/go2nvr/pkg/srtp"
 	"github.com/pion/rtp"
 )
 

@@ -2,7 +2,7 @@
 
 ## ONVIF Client
 
-[`new in v1.5.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.5.0)
+[`new in v1.5.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.5.0)
 
 The source is not very useful if you already know RTSP and snapshot links for your camera. But it can be useful if you don't.
 

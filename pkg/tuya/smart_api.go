@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/webrtc"
+	"github.com/57Darling02/go2nvr/pkg/webrtc"
 )
 
 type LoginTokenRequest struct {

@@ -23,12 +23,12 @@ go list -deps .\cmd\go2rtc_rtsp\
 ```
 - gopkg.in/yaml.v3
   - github.com/kr/pretty
-- github.com/AlexxIT/go2rtc/pkg/hap
+- github.com/57Darling02/go2nvr/pkg/hap
   - github.com/tadglines/go-pkgs
   - golang.org/x/crypto
-- github.com/AlexxIT/go2rtc/pkg/mdns
+- github.com/57Darling02/go2nvr/pkg/mdns
   - github.com/miekg/dns
-- github.com/AlexxIT/go2rtc/pkg/pcm
+- github.com/57Darling02/go2nvr/pkg/pcm
   - github.com/sigurn/crc16
   - github.com/sigurn/crc8
 - github.com/pion/ice/v2

@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"sync"
 
-	"github.com/AlexxIT/go2rtc/pkg/probe"
+	"github.com/57Darling02/go2nvr/pkg/probe"
 )
 
 type Preload struct {

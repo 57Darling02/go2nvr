@@ -2,7 +2,5 @@ package www
 
 import "embed"
 
-//go:embed *.html
-//go:embed *.js
-//go:embed *.json
+//go:embed index.html favicon.ico assets/*
 var Static embed.FS

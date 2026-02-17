@@ -42,7 +42,7 @@ RTSP link with "normal" audio for any player: `rtsp://192.168.1.123:8554/aqara_g
 
 ## HomeKit Server
 
-[`new in v1.7.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.7.0)
+[`new in v1.7.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.7.0)
 
 HomeKit module can work in two modes:
 

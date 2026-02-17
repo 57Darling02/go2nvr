@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/webrtc"
+	"github.com/57Darling02/go2nvr/pkg/webrtc"
 	"github.com/google/uuid"
 )
 

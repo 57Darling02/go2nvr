@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/core"
 )
 
 func (s *Server) HandleMic(conn net.Conn) {

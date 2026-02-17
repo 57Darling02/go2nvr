@@ -3,10 +3,10 @@ package homekit
 import (
 	"encoding/hex"
 
-	"github.com/AlexxIT/go2rtc/pkg/aac"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/h264"
-	"github.com/AlexxIT/go2rtc/pkg/hap/camera"
+	"github.com/57Darling02/go2nvr/pkg/aac"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/h264"
+	"github.com/57Darling02/go2nvr/pkg/hap/camera"
 )
 
 var videoCodecs = [...]string{core.CodecH264}

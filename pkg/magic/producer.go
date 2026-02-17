@@ -6,16 +6,16 @@ import (
 	"errors"
 	"io"
 
-	"github.com/AlexxIT/go2rtc/pkg/aac"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/flv"
-	"github.com/AlexxIT/go2rtc/pkg/h264/annexb"
-	"github.com/AlexxIT/go2rtc/pkg/magic/bitstream"
-	"github.com/AlexxIT/go2rtc/pkg/magic/mjpeg"
-	"github.com/AlexxIT/go2rtc/pkg/mpegts"
-	"github.com/AlexxIT/go2rtc/pkg/mpjpeg"
-	"github.com/AlexxIT/go2rtc/pkg/wav"
-	"github.com/AlexxIT/go2rtc/pkg/y4m"
+	"github.com/57Darling02/go2nvr/pkg/aac"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/flv"
+	"github.com/57Darling02/go2nvr/pkg/h264/annexb"
+	"github.com/57Darling02/go2nvr/pkg/magic/bitstream"
+	"github.com/57Darling02/go2nvr/pkg/magic/mjpeg"
+	"github.com/57Darling02/go2nvr/pkg/mpegts"
+	"github.com/57Darling02/go2nvr/pkg/mpjpeg"
+	"github.com/57Darling02/go2nvr/pkg/wav"
+	"github.com/57Darling02/go2nvr/pkg/y4m"
 )
 
 func Open(r io.Reader) (core.Producer, error) {
@@ -55,7 +55,7 @@ func Open(r io.Reader) (core.Producer, error) {
 	}
 
 	// support MJPEG with trash on start
-	// https://github.com/AlexxIT/go2rtc/issues/747
+	// https://github.com/57Darling02/go2nvr/issues/747
 	if b, err = rd.Peek(4096); err != nil {
 		return nil, err
 	}

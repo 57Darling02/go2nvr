@@ -1,6 +1,6 @@
 # Roborock
 
-[`new in v1.3.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.3.0)
+[`new in v1.3.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.3.0)
 
 This source type supports Roborock vacuums with cameras. Known working models:
 

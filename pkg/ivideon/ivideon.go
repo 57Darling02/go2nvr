@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/mp4"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/mp4"
 	"github.com/gorilla/websocket"
 )
 

@@ -3,8 +3,8 @@ package pinggy
 import (
 	"net/url"
 
-	"github.com/AlexxIT/go2rtc/internal/app"
-	"github.com/AlexxIT/go2rtc/pkg/pinggy"
+	"github.com/57Darling02/go2nvr/internal/app"
+	"github.com/57Darling02/go2nvr/pkg/pinggy"
 	"github.com/rs/zerolog"
 )
 

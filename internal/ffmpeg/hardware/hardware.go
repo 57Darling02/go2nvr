@@ -5,8 +5,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/AlexxIT/go2rtc/internal/api"
-	"github.com/AlexxIT/go2rtc/pkg/ffmpeg"
+	"github.com/57Darling02/go2nvr/internal/api"
+	"github.com/57Darling02/go2nvr/pkg/ffmpeg"
 )
 
 const (
@@ -91,7 +91,7 @@ func MakeHardware(args *ffmpeg.Args, engine string, defaults map[string]string) 
 			args.Codecs[i] = defaults[name+"/"+engine]
 
 			// CUDA doesn't support hardware transpose
-			// https://github.com/AlexxIT/go2rtc/issues/389
+			// https://github.com/57Darling02/go2nvr/issues/389
 			if !args.HasFilters("drawtext=", "transpose=") {
 				args.Input = "-hwaccel cuda -hwaccel_output_format cuda " + args.Input
 

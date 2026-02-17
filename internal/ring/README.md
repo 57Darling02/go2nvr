@@ -1,6 +1,6 @@
 # Ring
 
-[`new in v1.9.13`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.13) by [@seydx](https://github.com/seydx)
+[`new in v1.9.13`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.13) by [@seydx](https://github.com/seydx)
 
 This source type supports Ring cameras with [two-way audio](../../README.md#two-way-audio) support.
 

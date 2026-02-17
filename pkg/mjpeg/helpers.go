@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"image/jpeg"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/y4m"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/y4m"
 	"github.com/pion/rtp"
 )
 

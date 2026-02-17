@@ -5,8 +5,8 @@ import (
 	"net"
 	"slices"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/xnet"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/xnet"
 	"github.com/pion/ice/v4"
 	"github.com/pion/interceptor"
 	"github.com/pion/webrtc/v4"

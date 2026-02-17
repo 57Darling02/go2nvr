@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/internal/webrtc"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	xwebrtc "github.com/AlexxIT/go2rtc/pkg/webrtc"
+	"github.com/57Darling02/go2nvr/internal/webrtc"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	xwebrtc "github.com/57Darling02/go2nvr/pkg/webrtc"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	pion "github.com/pion/webrtc/v4"

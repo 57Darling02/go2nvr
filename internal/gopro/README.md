@@ -1,6 +1,6 @@
 # GoPro
 
-[`new in v1.8.3`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.8.3)
+[`new in v1.8.3`](https://github.com/57Darling02/go2nvr/releases/tag/v1.8.3)
 
 Support streaming from [GoPro](https://gopro.com/) cameras, connected via USB or Wi-Fi to Linux, Mac, Windows.
 

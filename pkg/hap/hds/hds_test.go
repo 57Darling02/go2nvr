@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/core"
 	"github.com/stretchr/testify/require"
 )
 

@@ -1,6 +1,6 @@
 # Docker
 
-Images are built automatically via [GitHub actions](https://github.com/AlexxIT/go2rtc/actions) and published on [Docker Hub](https://hub.docker.com/r/alexxit/go2rtc) and [GitHub](https://github.com/AlexxIT/go2rtc/pkgs/container/go2rtc).
+Images are built automatically via [GitHub actions](https://github.com/57Darling02/go2nvr/actions) and published on [Docker Hub](https://hub.docker.com/r/alexxit/go2rtc) and [GitHub](https://github.com/57Darling02/go2nvr/pkgs/container/go2rtc).
 
 ## Versions
 

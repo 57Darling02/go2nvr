@@ -3,9 +3,9 @@ package miss
 import (
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/opus"
-	"github.com/AlexxIT/go2rtc/pkg/pcm"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/opus"
+	"github.com/57Darling02/go2nvr/pkg/pcm"
 	"github.com/pion/rtp"
 )
 

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/tutk"
+	"github.com/57Darling02/go2nvr/pkg/tutk"
 	"github.com/pion/dtls/v3"
 )
 

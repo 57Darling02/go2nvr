@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"image"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/core"
 )
 
 const FourCC = "YUV4"

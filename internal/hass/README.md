@@ -20,7 +20,7 @@ streams:
 
 ### WebRTC Cameras
 
-[`new in v1.6.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.6.0)
+[`new in v1.6.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.6.0)
 
 Any cameras in WebRTC format are supported. But at the moment Home Assistant only supports some [Nest](https://www.home-assistant.io/integrations/nest/) cameras in this format.
 

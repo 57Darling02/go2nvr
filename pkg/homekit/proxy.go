@@ -9,10 +9,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/hap"
-	"github.com/AlexxIT/go2rtc/pkg/hap/camera"
-	"github.com/AlexxIT/go2rtc/pkg/hap/hds"
-	"github.com/AlexxIT/go2rtc/pkg/hap/tlv8"
+	"github.com/57Darling02/go2nvr/pkg/hap"
+	"github.com/57Darling02/go2nvr/pkg/hap/camera"
+	"github.com/57Darling02/go2nvr/pkg/hap/hds"
+	"github.com/57Darling02/go2nvr/pkg/hap/tlv8"
 )
 
 type ServerProxy interface {

@@ -4,10 +4,10 @@ import (
 	"net"
 	"strings"
 
-	"github.com/AlexxIT/go2rtc/internal/api/ws"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/webrtc"
-	"github.com/AlexxIT/go2rtc/pkg/xnet"
+	"github.com/57Darling02/go2nvr/internal/api/ws"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/webrtc"
+	"github.com/57Darling02/go2nvr/pkg/xnet"
 	pion "github.com/pion/webrtc/v4"
 )
 

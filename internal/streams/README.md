@@ -4,7 +4,7 @@ This core module is responsible for managing the stream list.
 
 ## Stream to camera
 
-[`new in v1.3.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.3.0)
+[`new in v1.3.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.3.0)
 
 go2rtc supports playing audio files (ex. music or [TTS](https://www.home-assistant.io/integrations/#text-to-speech)) and live streams (ex. radio) on cameras with [two-way audio](../../README.md#two-way-audio) support.
 
@@ -26,7 +26,7 @@ POST http://localhost:1984/api/streams?dst=camera1&src=ffmpeg:http://example.com
 
 ## Publish stream
 
-[`new in v1.8.0`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.8.0)
+[`new in v1.8.0`](https://github.com/57Darling02/go2nvr/releases/tag/v1.8.0)
 
 You can publish any stream to streaming services (YouTube, Telegram, etc.) via RTMP/RTMPS. Important:
 
@@ -64,7 +64,7 @@ streams:
 
 ## Preload stream
 
-[`new in v1.9.11`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.11)
+[`new in v1.9.11`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.11)
 
 You can preload any stream on go2rtc start. This is useful for cameras that take a long time to start up.
 

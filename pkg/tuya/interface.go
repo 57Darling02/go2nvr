@@ -3,7 +3,7 @@ package tuya
 import (
 	"net/http"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/core"
 	pionWebrtc "github.com/pion/webrtc/v4"
 )
 

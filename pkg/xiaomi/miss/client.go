@@ -10,9 +10,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/tutk"
-	"github.com/AlexxIT/go2rtc/pkg/xiaomi/crypto"
-	"github.com/AlexxIT/go2rtc/pkg/xiaomi/miss/cs2"
+	"github.com/57Darling02/go2nvr/pkg/tutk"
+	"github.com/57Darling02/go2nvr/pkg/xiaomi/crypto"
+	"github.com/57Darling02/go2nvr/pkg/xiaomi/miss/cs2"
 )
 
 const (

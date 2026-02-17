@@ -1,6 +1,6 @@
 # ALSA
 
-[`new in v1.9.10`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.10)
+[`new in v1.9.10`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.10)
 
 > [!WARNING]
 > This source is under development and does not always work well.

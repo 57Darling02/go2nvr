@@ -1,6 +1,6 @@
 # TP-Link MULTITRANS
 
-[`new in v1.9.14`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.14) by [@forrestsocool](https://github.com/forrestsocool)
+[`new in v1.9.14`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.14) by [@forrestsocool](https://github.com/forrestsocool)
 
 Two-way audio support for Chinese version of [TP-Link](https://www.tp-link.com.cn/) cameras.
 
@@ -18,5 +18,5 @@ streams:
 ## Useful links
 
 - https://www.tp-link.com.cn/list_2549.html
-- https://github.com/AlexxIT/go2rtc/issues/1724
+- https://github.com/57Darling02/go2nvr/issues/1724
 - https://github.com/bingooo/hass-tplink-ipc/

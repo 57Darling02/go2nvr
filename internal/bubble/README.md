@@ -1,6 +1,6 @@
 # Bubble
 
-[`new in v1.6.1`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.6.1)
+[`new in v1.6.1`](https://github.com/57Darling02/go2nvr/releases/tag/v1.6.1)
 
 Private format in some cameras from [dvr163.com](http://help.dvr163.com/) and [eseecloud.com](http://www.eseecloud.com/).
 

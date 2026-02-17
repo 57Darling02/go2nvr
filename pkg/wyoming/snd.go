@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"net"
 
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/pcm"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/pcm"
 )
 
 func (s *Server) HandleSnd(conn net.Conn) {

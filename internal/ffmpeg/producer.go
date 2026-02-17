@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlexxIT/go2rtc/internal/streams"
-	"github.com/AlexxIT/go2rtc/pkg/aac"
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/internal/streams"
+	"github.com/57Darling02/go2nvr/pkg/aac"
+	"github.com/57Darling02/go2nvr/pkg/core"
 )
 
 type Producer struct {

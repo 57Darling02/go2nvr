@@ -3,8 +3,8 @@ package aac
 import (
 	"encoding/hex"
 
-	"github.com/AlexxIT/go2rtc/pkg/bits"
-	"github.com/AlexxIT/go2rtc/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/bits"
+	"github.com/57Darling02/go2nvr/pkg/core"
 	"github.com/pion/rtp"
 )
 

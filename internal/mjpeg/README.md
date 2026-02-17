@@ -44,7 +44,7 @@ curl http://192.168.1.123:1984/api/frame.jpeg?src=camera1
 
 - You can use `width`/`w` and/or `height`/`h` parameters.
 - You can use `rotate` param with `90`, `180`, `270` or `-90` values.
-- You can use `hardware`/`hw` param [read more](https://github.com/AlexxIT/go2rtc/wiki/Hardware-acceleration).
+- You can use `hardware`/`hw` param [read more](https://github.com/57Darling02/go2nvr/wiki/Hardware-acceleration).
 - You can use `cache` param (`1m`, `10s`, etc.) to get a cached snapshot.
   - The snapshot is cached only when requested with the `cache` parameter.
   - A cached snapshot will be used if its time is not older than the time specified in the `cache` parameter.

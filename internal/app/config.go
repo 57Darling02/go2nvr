@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/AlexxIT/go2rtc/pkg/creds"
-	"github.com/AlexxIT/go2rtc/pkg/yaml"
+	"github.com/57Darling02/go2nvr/pkg/creds"
+	"github.com/57Darling02/go2nvr/pkg/yaml"
 )
 
 func LoadConfig(v any) {
@@ -55,7 +55,7 @@ var configs [][]byte
 
 func initConfig(confs flagConfig) {
 	if confs == nil {
-		confs = []string{"go2rtc.yaml"}
+		confs = []string{"go2nvr.yaml"}
 	}
 
 	for _, conf := range confs {

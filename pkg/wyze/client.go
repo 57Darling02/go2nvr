@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/pkg/tutk"
-	"github.com/AlexxIT/go2rtc/pkg/tutk/dtls"
+	"github.com/57Darling02/go2nvr/pkg/tutk"
+	"github.com/57Darling02/go2nvr/pkg/tutk/dtls"
 )
 
 const (

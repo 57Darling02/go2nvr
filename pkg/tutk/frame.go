@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/AlexxIT/go2rtc/pkg/aac"
+	"github.com/57Darling02/go2nvr/pkg/aac"
 )
 
 const (

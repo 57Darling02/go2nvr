@@ -3,9 +3,9 @@ package wyze
 import (
 	"fmt"
 
-	"github.com/AlexxIT/go2rtc/pkg/aac"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/tutk"
+	"github.com/57Darling02/go2nvr/pkg/aac"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/tutk"
 	"github.com/pion/rtp"
 )
 

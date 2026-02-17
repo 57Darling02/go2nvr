@@ -7,15 +7,15 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/AlexxIT/go2rtc/internal/api"
-	"github.com/AlexxIT/go2rtc/internal/streams"
-	"github.com/AlexxIT/go2rtc/pkg/core"
-	"github.com/AlexxIT/go2rtc/pkg/hls"
-	"github.com/AlexxIT/go2rtc/pkg/image"
-	"github.com/AlexxIT/go2rtc/pkg/magic"
-	"github.com/AlexxIT/go2rtc/pkg/mpjpeg"
-	"github.com/AlexxIT/go2rtc/pkg/pcm"
-	"github.com/AlexxIT/go2rtc/pkg/tcp"
+	"github.com/57Darling02/go2nvr/internal/api"
+	"github.com/57Darling02/go2nvr/internal/streams"
+	"github.com/57Darling02/go2nvr/pkg/core"
+	"github.com/57Darling02/go2nvr/pkg/hls"
+	"github.com/57Darling02/go2nvr/pkg/image"
+	"github.com/57Darling02/go2nvr/pkg/magic"
+	"github.com/57Darling02/go2nvr/pkg/mpjpeg"
+	"github.com/57Darling02/go2nvr/pkg/pcm"
+	"github.com/57Darling02/go2nvr/pkg/tcp"
 )
 
 func Init() {

@@ -1,6 +1,6 @@
 # Wyze
 
-[`new in v1.9.14`](https://github.com/AlexxIT/go2rtc/releases/tag/v1.9.14) by [@seydx](https://github.com/seydx)
+[`new in v1.9.14`](https://github.com/57Darling02/go2nvr/releases/tag/v1.9.14) by [@seydx](https://github.com/seydx)
 
 This source allows you to stream from [Wyze](https://wyze.com/) cameras using native P2P protocol without the Wyze app or SDK.
 

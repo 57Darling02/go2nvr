@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/AlexxIT/go2rtc/internal/app"
+	"github.com/57Darling02/go2nvr/internal/app"
 	"gopkg.in/yaml.v3"
 )
 
