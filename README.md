@@ -9,7 +9,8 @@ It extends the core streaming capabilities with a native, deep-integrated record
 - **🚀 Advanced Streaming Core**: Inherits all the robust streaming features of go2rtc (RTSP, WebRTC, MSE, HLS, HomeKit, etc.).
 - **📹 Native Recording Engine**: 
   - Integrated directly into the core (no external scripts required).
-  - Configurable recording rules (continuous, motion-based, etc.).
+  - API-driven recording control (Start/Stop).
+  - Configurable pre-buffering (never miss the start of an event).
   - Automatic retention management (days-based cleanup).
   - High-performance writing directly to disk.
 - **🖥️ Enhanced Web Dashboard**: 
@@ -44,7 +45,7 @@ Go2NVR offers two ways to configure your system.
 For most users, the Web UI provides all necessary controls.
 Access the dashboard at `http://localhost:1984`.
 - **Add Streams**: Manage your camera connections.
-- **Recording Rules**: Set up continuous or motion-based recording.
+- **Recording Management**: Start or stop recordings manually.
 - **Playback**: Browse and view recorded footage.
 
 ### 2. Advanced YAML Configuration
@@ -68,25 +69,19 @@ record:
   dir: recordings       # Directory to save recordings
   retention: 7          # Keep recordings for 7 days
   rules:
-    - src: camera1      # Source stream name (must match streams section)
-      mode: all         # Recording mode: all (continuous)
-      segment: 60       # Segment duration in seconds
+    - src: camera1      # Source stream name
+      prebuffer: 10     # Pre-record 10s of video in memory (optional)
 ```
 
 ## Recording System
 
-The recording module turns the streaming server into a fully-fledged NVR. It operates on a **dual-mode philosophy**:
+The recording module turns the streaming server into a fully-fledged NVR. It is designed with a **decoupled architecture**:
 
-### 1. Universal Manual Recording
-Any stream can be recorded instantly via the API or Web UI button, **without any prior configuration**. This is useful for capturing specific events on demand.
+### 1. Manual & External Control
+Any stream can be recorded instantly via the API or Web UI button. Since the recording logic is decoupled, you can easily trigger recordings from external scripts, smart home systems, or dedicated motion detection modules (like Frigate or internal trigger plugins).
 
-### 2. Automated Strategies
-You can define persistent recording rules for your cameras.
-
-| Mode | Description |
-| :--- | :--- |
-| **Always (`all`)** | **Continuous 24/7 Recording**. The system records everything. Files are automatically segmented based on the `segment` duration (default: 600s). |
-| **Motion (`motion`)** | **Smart Event Recording**. The system buffers video in memory and only writes to disk when motion is detected. <br>• **Pre-buffer**: Captures seconds *before* the motion event (never miss the start).<br>• **Post-buffer**: Continues recording for a set time after motion stops. |
+### 2. Pre-Recording (Pre-buffer)
+To ensure you never miss the beginning of an event, Go2NVR can maintain a configurable in-memory buffer. When a recording is started (manually or via API), the system automatically flushes the buffered video to the disk before writing real-time data.
 
 ### Storage & Retention
 - **Structure**: Recordings are organized by `stream_name/YYYY-MM-DD/HH-MM-SS.mp4`.
