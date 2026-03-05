@@ -4,25 +4,17 @@ streams:
   #   - rtsp://username:passwd@192.168.1.13:8080/h264_ulaw.sdp
   # camera2:
   #   - rtsp://username:passwd0@192.168.1.176:8080/h264_ulaw.sdp
+  test:
+    - rtsp://192.168.123.42:8080/h264_ulaw.sdp
 api:
   listen: ":1984"
   username: "username"
   password: "password"
 
 # It is recommended to configure the record settings in the WebUI.
-# record:
-#   dir: ./recordings
-#   retention: 7
-#   rules:
-#     - src: camera1
-#       mode: always
-#       segment: 600
-#       prebuffer: 0
-#       post: 0
-#       threshold: 0
-#     - src: camera2
-#       mode: motion
-#       segment: 600
-#       prebuffer: 8
-#       post: 15
-#       threshold: 1500
+record:
+  rules:
+    - src: test
+      prebuffer: 10
+  dir: ./records
+  retention: 7

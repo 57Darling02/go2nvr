@@ -1,145 +1,73 @@
-# Record
+# Record 模块
 
-The `record` module completes go2rtc’s recording capabilities. It turns the project into a fully-fledged, yet lightweight, NVR solution.
+`record` 模块为 go2rtc 提供了灵活的录制功能，使其能够作为一个轻量级的 NVR (网络视频录像机) 运行。
 
-It is designed with a **dual-mode philosophy**:
-
-1. **Universal Manual Recording**: Any stream in go2rtc can be recorded instantly via API, **without any prior configuration**.
-2. **Automated Strategies**: You can define persistence rules (like "Motion Detection" or "Always On") in the config file or via API for specific streams.
+在重构后，该模块采用了**极致解耦**的设计理念：将录制执行、配置管理与外部触发逻辑完全分离。
 
 ---
 
-## 1. Core Concepts
+## 1. 核心设计理念
 
-Understanding the three states of a recorder:
-
-| State | Description | API Status |
-| --- | --- | --- |
-| **Stopped** | The recorder is inactive. No configuration exists, or the stream is not running. | `stopped` |
-| **Idle** | **(Auto Mode Only)** The system is "Armed". It is buffering data and analyzing motion, waiting for a trigger. | `idle` |
-| **Recording** | Data is actively being written to the disk (triggered manually or by automation). | `recording` |
+- **手动触发为主**: 录制的开始与结束主要通过 API 显式调用。
+- **预录缓存 (Pre-buffering)**: 即使在未录制时，系统也会根据配置维护一个内存环形缓冲，确保手动启动录制时能包含触发前的数据。
+- **外部驱动**: 运动检测、定时计划等复杂逻辑不再内置，而是通过独立的进程或逻辑调用 API 来驱动本模块。
 
 ---
 
-## 2. API: Control & Status
+## 2. API 接口说明
 
-Monitor and control recordings in real-time.
-
-### List Active Recordings
+### 录制控制与状态
 
 **GET** `/api/record`
-
-Returns a JSON list of all available streams and their recording status.
+返回所有流的实时录制状态。
 
 ```json
 [
   {
     "name": "camera1",
     "status": "recording",
-    "file": "records/camera1/2023-10-27/12-00-00.000.mp4",
+    "file": "records/camera1/2026-03-05/12-00-00.mp4",
     "duration": "10m30s"
   },
   {
     "name": "office_cam",
     "status": "idle",
-    "mode": "motion"
-  },
-  {
-    "name": "doorbell",
-    "status": "stopped"
+    "prebuffer": 10
   }
 ]
 ```
 
-### Check Stream Status
-
-**GET** `/api/record?src={stream_name}`
-
-Get the detailed state of a recorder. Useful for debugging (e.g., seeing if a "motion" recorder is currently `idle` or `recording`, or checking the status of a stream with no automation config).
-
-```json
-{
-  "status": "recording",    // stopped | idle | recording
-  "mode": "motion",         // Configured auto-strategy (if any)
-  "manual": true,           // Is it currently forced on by API?
-  "auto_active": false,     // Is it currently triggered by automation?
-  "file": "path/to/file",   // Current file path (if recording)
-  "duration": "10s"         // Current recording duration
-}
-```
-
-### Manual Control
-
 **POST** `/api/record?src={stream_name}&action=start|stop`
-
-* **Start**: Instantly starts recording. If the stream has no config, it defaults to manual mode.
-* **Stop**: Stops the recording. If the stream was in "Auto" mode, it reverts to `idle` (armed) state.
-
-```bash
-# Example: Start recording "camera_living_room"
-curl -X POST "http://localhost:1984/api/record?src=camera_living_room&action=start"
-```
+- **start**: 立即启动录制。如果存在预录缓存，会先将缓存数据回灌入文件。
+- **stop**: 停止录制并关闭文件。
 
 ---
 
-## 3. API: Automation Rules
-
-Dynamically manage recording rules without restarting. Changes are **automatically saved** to `go2rtc.yaml`.
-
-### Get Rules
+### 自动化规则管理
 
 **GET** `/api/record/rules`
-
-* **Default**: Returns a JSON list of all configured automation rules.
-* **?src={stream_name}**: Returns the specific rule for the given stream.
-
-```json
-{
-  "src": "camera2",
-  "mode": "motion",
-  "segment": 300,
-  "prebuffer": 8,
-  "post": 30,
-  "threshold": 1500
-}
-```
-
-### Add / Update Rule
+获取当前定义的录制规则列表。
 
 **POST** `/api/record/rules`
-
-Adds a new rule or updates an existing one (matched by `src`).
-
+添加或更新规则。规则仅定义流的默认预录时长，不负责自动开启录制。
 **Body (JSON):**
 ```json
 {
-  "src": "camera2",
-  "mode": "motion",       // "always" or "motion"
-  "segment": 300,         // Split file every 300s
-  "prebuffer": 8,         // Pre-record 8s before event
-  "post": 30,             // Record 30s after event
-  "threshold": 1500       // Motion sensitivity (optional)
+  "src": "camera1",
+  "prebuffer": 10
 }
 ```
 
-### Delete Rule
-
 **DELETE** `/api/record/rules?src={stream_name}`
-
-Removes the rule for a stream and stops any automation associated with it.
+删除指定流的规则。
 
 ---
 
-## 4. API: Global Configuration
-
-Manage global recording settings (directory, retention) dynamically.
-
-### Get Configuration
+### 全局配置
 
 **GET** `/api/record/config`
-
-Returns current global settings.
-
+**POST** `/api/record/config`
+管理全局录制路径和文件保留天数。
 ```json
 {
   "dir": "./records",
@@ -147,107 +75,50 @@ Returns current global settings.
 }
 ```
 
-### Update Configuration
-
-**POST** `/api/record/config`
-
-Updates global settings. Changes are **automatically saved** to `go2rtc.yaml`.
-
-* **dir**: Path to recording directory (will be created if not exists).
-* **retention**: Retention period in days (0 to disable).
-
-```json
-{
-  "dir": "/mnt/storage/cctv",
-  "retention": 30
-}
-```
-
 ---
 
-## 5. API: File Management
-
-Browse, download, and manage recorded footage.
-
-### Browse Files (JSON)
+### 文件管理
 
 **GET** `/api/record?path={folder_path}`
-
-Returns a JSON list of files and subdirectories. Use this to build a file browser UI.
-
-* **path**: Relative path from the recording root (default: root).
-
-```json
-[
-  {"name": "camera1", "is_file": false},
-  {"name": "event.mp4", "is_file": true, "size": 10240, "mod_time": 1698390000}
-]
-```
-
-### Stream / Download File
+浏览录制目录下的文件列表。
 
 **GET** `/api/record/file?path={file_path}`
-
-* **Default**: Streams the file content (supports HTTP Range requests for seeking).
-* **&download=1**: Sets `Content-Disposition` header to force download.
-
-### Delete File
+- 直接访问：流式播放/预览。
+- `&download=1`: 强制下载。
 
 **DELETE** `/api/record/file?path={file_path}`
-
-Permanently deletes the specified file.
+永久删除录制文件。
 
 ---
 
-## 5. Configuration (YAML)
+## 3. 配置文件说明 (YAML)
 
-You can also configure automation manually in `go2rtc.yaml`.
-*Note: The API methods above (Section 3) are the recommended way to manage this programmatically.*
+你可以在 `go2rtc.yaml` 中静态配置：
 
 ```yaml
 record:
-  dir: ./records       # Storage root
-  retention: 7         # Delete files older than 7 days (0 to disable)
+  dir: ./records       # 录制根目录
+  retention: 7         # 自动清理 7 天前的录像 (0 为禁用)
   
   rules:             
     - src: camera1
-      mode: always     # 24/7 Recording
-      segment: 600     # Split files every 10 minutes
-
-    - src: camera2
-      mode: motion     # Record only when motion is detected
-      segment: 300
-      prebuffer: 8     # Keep 8s of video before motion happens
-      post: 30         # Keep recording 30s after motion stops
-      threshold: 5000  # Sensitivity (lower = more sensitive)
+      prebuffer: 10    # 始终为 camera1 维护 10 秒预录缓存
 ```
-
-### Directory Structure
-
-Files are organized automatically:
-`./records/{stream_name}/{YYYY-MM-DD}/{HH-MM-SS.mmm}.mp4`
 
 ---
 
-## 6. Features & Architecture
+## 4. 架构与性能特性
 
-This module is built for production-grade reliability and performance.
+### 🚀 高性能 I/O
+- **缓冲写入**: 使用 64KB `bufio` 缓冲，减少磁盘寻址与系统调用。
+- **异步关闭**: 文件关闭操作在独立协程执行，避免阻塞实时 RTP 转发路径。
 
-### 🚀 High-Performance I/O
+### 🔄 预录逻辑 (Pre-buffer)
+- 每个 Recorder 维护一个基于时间戳的内存队列。
+- 当收到 `start` 指令时，Recorder 会定位到缓存中最近的一个关键帧 (Keyframe) 开始回灌数据，确保生成的 MP4 文件能够正常解码。
 
-* **Buffered Writing**: Uses a 64KB `bufio` buffer to merge tiny RTP packets into large disk blocks. This drastically reduces syscalls (IOPS) and CPU usage.
-* **Zero-Copy Logic**: Heavy operations are minimized. Data is only cloned when necessary (e.g., for the pre-record buffer).
+### 🛡️ 路径安全
+- 所有文件操作 API 均内置了路径穿越 (Path Traversal) 检查，确保无法访问录制目录以外的系统文件。
 
-### 🔄 Seamless Segmentation
-
-* **Gapless Rotation**: The file rotation logic is optimized: New files are pre-created, and the pointer is swapped under a lock.
-* **Async Closing**: Old files are flushed and closed in a background goroutine, ensuring the main RTP processing loop never blocks or drops frames during file switches.
-
-### 🧠 Smart Motion Detection
-
-* **Pre-Recording**: Uses an in-memory ring buffer to save video *before* the trigger event, ensuring you never miss the start of the action.
-* **Safety Timeout**: FFmpeg processes used for motion analysis are protected by a strict `context` timeout to prevent zombie processes.
-
-### 🧹 Auto Maintenance
-
-* **Retention Policy**: A background task runs hourly to clean up old recordings based on your `retention` setting, making the system maintenance-free.
+### 🧹 自动维护
+- 后台任务每小时运行一次，根据 `retention` 设定自动删除过期日期的目录，实现无人值守运行。
