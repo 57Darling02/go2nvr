@@ -11,6 +11,7 @@ import (
 
 	"github.com/57Darling02/go2nvr/internal/api"
 	"github.com/57Darling02/go2nvr/internal/app"
+	rectrigger "github.com/57Darling02/go2nvr/internal/record/trigger"
 	"github.com/57Darling02/go2nvr/internal/streams"
 	"github.com/rs/zerolog"
 )
@@ -24,6 +25,7 @@ var (
 func Init() {
 	log = app.GetLogger("record")
 	initConfig()
+	initTrigger()
 
 	go diskCleanup()
 
@@ -32,11 +34,13 @@ func Init() {
 			continue
 		}
 		_ = ensureRecorder(rule.Src, rule.prebufferDuration())
+		startTriggerForRule(rule)
 	}
 
 	api.HandleFunc("api/record", recordHandler)
 	api.HandleFunc("api/record/file", fileHandler)
 	api.HandleFunc("api/record/rules", rulesHandler)
+	api.HandleFunc("api/record/triggers", triggersHandler)
 	api.HandleFunc("api/record/config", configHandler)
 }
 
@@ -235,6 +239,12 @@ func buildState(name string, rec *Recorder) map[string]interface{} {
 	}
 	if rule, ok := getRule(name); ok {
 		state["prebuffer"] = rule.Prebuffer
+		triggerID := rule.triggerID()
+		state["trigger_id"] = triggerID
+		if info, ok := rectrigger.DetectorByID(triggerID); ok {
+			state["trigger_key"] = info.Key
+			state["trigger_name"] = info.Name
+		}
 		if rec == nil {
 			state["status"] = "idle"
 		}
@@ -252,6 +262,14 @@ func buildState(name string, rec *Recorder) map[string]interface{} {
 		state["status"] = "idle"
 	}
 	return state
+}
+
+func triggersHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	api.ResponseJSON(w, rectrigger.ListDetectors())
 }
 
 func rulesHandler(w http.ResponseWriter, r *http.Request) {
@@ -290,6 +308,7 @@ func rulesHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "stream not found", http.StatusNotFound)
 			return
 		}
+		startTriggerForRule(rule)
 		api.ResponseJSON(w, rule)
 
 	case http.MethodDelete:
@@ -302,6 +321,7 @@ func rulesHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+		stopTrigger(src)
 
 		mu.RLock()
 		rec := recorders[src]

@@ -11,10 +11,15 @@ api:
   username: "username"
   password: "password"
 
+
 # It is recommended to configure the record settings in the WebUI.
 record:
+  dir: ./records
+  retention: 7
   rules:
     - src: test
       prebuffer: 10
-  dir: ./records
-  retention: 7
+      trigger_id: 1
+      trigger_threshold: 14
+      trigger_post: 10
+      trigger_interval: 250

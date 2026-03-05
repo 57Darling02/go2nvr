@@ -9,8 +9,12 @@ import (
 )
 
 type recordRule struct {
-	Src       string `yaml:"src" json:"src"`
-	Prebuffer int    `yaml:"prebuffer" json:"prebuffer"`
+	Src              string `yaml:"src" json:"src"`
+	Prebuffer        int    `yaml:"prebuffer" json:"prebuffer"`
+	TriggerID        int    `yaml:"trigger_id" json:"trigger_id,omitempty"`
+	TriggerThreshold int    `yaml:"trigger_threshold" json:"trigger_threshold,omitempty"`
+	TriggerPost      int    `yaml:"trigger_post" json:"trigger_post,omitempty"`
+	TriggerInterval  int    `yaml:"trigger_interval" json:"trigger_interval,omitempty"`
 }
 
 type recordConfig struct {
@@ -162,4 +166,36 @@ func (r recordRule) prebufferDuration() time.Duration {
 		return 0
 	}
 	return time.Duration(r.Prebuffer) * time.Second
+}
+
+func (r recordRule) triggerThreshold() int {
+	if r.TriggerThreshold <= 0 {
+		return 14
+	}
+	return r.TriggerThreshold
+}
+
+func (r recordRule) triggerPostDuration() time.Duration {
+	if r.TriggerPost <= 0 {
+		return 10 * time.Second
+	}
+	return time.Duration(r.TriggerPost) * time.Second
+}
+
+func (r recordRule) triggerInterval() time.Duration {
+	if r.TriggerInterval <= 0 {
+		return 250 * time.Millisecond
+	}
+	return time.Duration(r.TriggerInterval) * time.Millisecond
+}
+
+func (r recordRule) triggerEnabled() bool {
+	return r.TriggerID > 0
+}
+
+func (r recordRule) triggerID() int {
+	if r.TriggerID > 0 {
+		return r.TriggerID
+	}
+	return 0
 }

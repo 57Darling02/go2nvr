@@ -15,6 +15,7 @@ import (
 	"github.com/57Darling02/go2nvr/pkg/aac"
 	"github.com/57Darling02/go2nvr/pkg/core"
 	"github.com/57Darling02/go2nvr/pkg/h264"
+	"github.com/57Darling02/go2nvr/pkg/h264/annexb"
 	"github.com/57Darling02/go2nvr/pkg/h265"
 	"github.com/57Darling02/go2nvr/pkg/magic"
 	"github.com/57Darling02/go2nvr/pkg/mjpeg"
@@ -43,6 +44,10 @@ type Recorder struct {
 	videoCodec string
 	startTS    map[byte]uint32
 	hasThumb   bool
+	lastKeyAt  time.Time
+	lastKey    []byte
+	keyCollect bool
+	keyBuf     []byte
 }
 
 type packetData struct {
@@ -159,6 +164,37 @@ func (r *Recorder) writeRTP(trackID byte, packet *rtp.Packet, isKeyframe bool) {
 	defer r.mu.Unlock()
 
 	now := time.Now()
+	if trackID == r.videoTrack {
+		if isKeyframe {
+			r.keyCollect = true
+			r.keyBuf = r.keyBuf[:0]
+		}
+		if r.keyCollect {
+			const maxKeyBytes = 2 * 1024 * 1024
+			if len(r.keyBuf)+len(packet.Payload) <= maxKeyBytes {
+				r.keyBuf = append(r.keyBuf, packet.Payload...)
+			}
+			if packet.Marker {
+				if len(r.keyBuf) > 0 {
+					var jpegData []byte
+					switch r.videoCodec {
+					case core.CodecH264:
+						jpegData, _ = ffmpeg.JPEGWithScale(annexb.DecodeAVCC(r.keyBuf, true), 640, -1)
+					case core.CodecH265:
+						jpegData, _ = ffmpeg.JPEGWithScale(annexb.DecodeAVCC(r.keyBuf, true), 640, -1)
+					case core.CodecJPEG:
+						jpegData = mjpeg.FixJPEG(r.keyBuf)
+					}
+
+					if len(jpegData) > 0 {
+						r.lastKey = jpegData
+						r.lastKeyAt = now
+					}
+				}
+				r.keyCollect = false
+			}
+		}
+	}
 
 	if r.recording {
 		if len(r.buffer) > 0 {
@@ -174,6 +210,17 @@ func (r *Recorder) writeRTP(trackID byte, packet *rtp.Packet, isKeyframe bool) {
 		r.keyframes = append(r.keyframes, len(r.buffer)-1)
 	}
 	r.pruneBuffer(now)
+}
+
+func (r *Recorder) LastKeyframe() ([]byte, time.Time, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(r.lastKey) == 0 {
+		return nil, time.Time{}, false
+	}
+	b := make([]byte, len(r.lastKey))
+	copy(b, r.lastKey)
+	return b, r.lastKeyAt, true
 }
 
 func (r *Recorder) StartRecording() {
@@ -342,6 +389,12 @@ func (r *Recorder) closeFile() {
 
 func (r *Recorder) saveThumbnail() {
 	filename := r.fileName
+	if b, _, ok := r.LastKeyframe(); ok && len(b) > 0 {
+		thumbName := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".thumb"
+		_ = os.WriteFile(thumbName, b, 0644)
+		return
+	}
+
 	stream := streams.Get(r.src)
 	if stream == nil {
 		return
