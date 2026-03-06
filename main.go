@@ -33,6 +33,7 @@ import (
 	"github.com/AlexxIT/go2rtc/internal/ngrok"
 	"github.com/AlexxIT/go2rtc/internal/onvif"
 	"github.com/AlexxIT/go2rtc/internal/pinggy"
+	"github.com/AlexxIT/go2rtc/internal/record"
 	"github.com/AlexxIT/go2rtc/internal/ring"
 	"github.com/AlexxIT/go2rtc/internal/roborock"
 	"github.com/AlexxIT/go2rtc/internal/rtmp"
@@ -85,6 +86,7 @@ func main() {
 		{"exec", exec.Init},
 		{"expr", expr.Init},
 		{"ffmpeg", ffmpeg.Init},
+		{"record", record.Init},
 		// Hardware sources
 		{"alsa", alsa.Init},
 		{"v4l2", v4l2.Init},
@@ -108,6 +110,7 @@ func main() {
 		{"wyze", wyze.Init},
 		{"xiaomi", xiaomi.Init},
 		{"yandex", yandex.Init},
+		
 		// Helper modules
 		{"debug", debug.Init},
 		{"ngrok", ngrok.Init},
