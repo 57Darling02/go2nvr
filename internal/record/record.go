@@ -2,6 +2,7 @@ package record
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -85,6 +86,14 @@ func ensureRecorder(src string, prebuffer time.Duration) *Recorder {
 	if rec, ok := recorders[name]; ok {
 		rec.SetPrebuffer(prebuffer)
 		mu.Unlock()
+		// Recover from stream restarts: recorder may exist in memory
+		// but no longer be attached as a consumer.
+		stream := streams.Get(name)
+		if stream != nil && !stream.HasConsumer(rec) {
+			if err := stream.AddConsumer(rec); err != nil {
+				return nil
+			}
+		}
 		return rec
 	}
 	rec := newRecorder(name, prebuffer)
@@ -96,12 +105,14 @@ func ensureRecorder(src string, prebuffer time.Duration) *Recorder {
 		mu.Lock()
 		delete(recorders, name)
 		mu.Unlock()
+		_ = rec.Stop()
 		return nil
 	}
 	if err := stream.AddConsumer(rec); err != nil {
 		mu.Lock()
 		delete(recorders, name)
 		mu.Unlock()
+		_ = rec.Stop()
 		return nil
 	}
 	return rec
@@ -298,6 +309,10 @@ func rulesHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "src required", http.StatusBadRequest)
 			return
 		}
+		if streams.Get(rule.Src) == nil {
+			http.Error(w, "stream not found", http.StatusNotFound)
+			return
+		}
 		if err := upsertRule(rule); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -305,7 +320,10 @@ func rulesHandler(w http.ResponseWriter, r *http.Request) {
 
 		rec := ensureRecorder(rule.Src, rule.prebufferDuration())
 		if rec == nil {
-			http.Error(w, "stream not found", http.StatusNotFound)
+			if err := removeRule(rule.Src); err != nil {
+				log.Warn().Err(err).Str("src", rule.Src).Msg("[record] rollback rule failed")
+			}
+			http.Error(w, "attach recorder failed", http.StatusInternalServerError)
 			return
 		}
 		startTriggerForRule(rule)
@@ -363,12 +381,9 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func listItems(w http.ResponseWriter, r *http.Request) {
-	baseDir, _ := getDirAndRetention()
 	pathRel := r.URL.Query().Get("path")
-	fullPath := filepath.Join(baseDir, filepath.FromSlash(pathRel))
-	cleanBase := filepath.Clean(baseDir)
-	cleanPath := filepath.Clean(fullPath)
-	if !strings.HasPrefix(cleanPath, cleanBase) {
+	cleanPath, err := resolveManagedPath(pathRel)
+	if err != nil {
 		http.Error(w, "invalid path", http.StatusForbidden)
 		return
 	}
@@ -416,11 +431,8 @@ func fileHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	baseDir, _ := getDirAndRetention()
-	fullPath := filepath.Join(baseDir, filepath.FromSlash(pathRel))
-	cleanBase := filepath.Clean(baseDir)
-	cleanPath := filepath.Clean(fullPath)
-	if !strings.HasPrefix(cleanPath, cleanBase) {
+	cleanPath, err := resolveManagedPath(pathRel)
+	if err != nil {
 		http.Error(w, "invalid path", http.StatusForbidden)
 		return
 	}
@@ -442,4 +454,26 @@ func fileHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
+}
+
+func resolveManagedPath(pathRel string) (string, error) {
+	baseDir, _ := getDirAndRetention()
+	baseAbs, err := filepath.Abs(baseDir)
+	if err != nil {
+		return "", err
+	}
+
+	targetAbs, err := filepath.Abs(filepath.Join(baseAbs, filepath.FromSlash(pathRel)))
+	if err != nil {
+		return "", err
+	}
+
+	rel, err := filepath.Rel(baseAbs, targetAbs)
+	if err != nil {
+		return "", err
+	}
+	if rel == ".." || strings.HasPrefix(rel, ".."+string(os.PathSeparator)) || filepath.IsAbs(rel) {
+		return "", errors.New("path out of base dir")
+	}
+	return targetAbs, nil
 }

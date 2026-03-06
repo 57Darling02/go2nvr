@@ -48,6 +48,11 @@ type Recorder struct {
 	lastKey    []byte
 	keyCollect bool
 	keyBuf     []byte
+
+	snapshotCh   chan snapshotTask
+	snapshotStop chan struct{}
+	snapshotDone chan struct{}
+	snapshotOnce sync.Once
 }
 
 type packetData struct {
@@ -56,12 +61,21 @@ type packetData struct {
 	at      time.Time
 }
 
+type snapshotTask struct {
+	codec   string
+	payload []byte
+	at      time.Time
+}
+
 func newRecorder(src string, prebuffer time.Duration) *Recorder {
 	r := &Recorder{
-		src:       src,
-		prebuffer: prebuffer,
-		muxer:     &mp4.Muxer{},
-		startTS:   make(map[byte]uint32),
+		src:          src,
+		prebuffer:    prebuffer,
+		muxer:        &mp4.Muxer{},
+		startTS:      make(map[byte]uint32),
+		snapshotCh:   make(chan snapshotTask, 2),
+		snapshotStop: make(chan struct{}),
+		snapshotDone: make(chan struct{}),
 	}
 
 	r.Connection = core.Connection{
@@ -83,6 +97,7 @@ func newRecorder(src string, prebuffer time.Duration) *Recorder {
 			},
 		},
 	}
+	go r.runSnapshotWorker()
 	return r
 }
 
@@ -176,20 +191,8 @@ func (r *Recorder) writeRTP(trackID byte, packet *rtp.Packet, isKeyframe bool) {
 			}
 			if packet.Marker {
 				if len(r.keyBuf) > 0 {
-					var jpegData []byte
-					switch r.videoCodec {
-					case core.CodecH264:
-						jpegData, _ = ffmpeg.JPEGWithScale(annexb.DecodeAVCC(r.keyBuf, true), 640, -1)
-					case core.CodecH265:
-						jpegData, _ = ffmpeg.JPEGWithScale(annexb.DecodeAVCC(r.keyBuf, true), 640, -1)
-					case core.CodecJPEG:
-						jpegData = mjpeg.FixJPEG(r.keyBuf)
-					}
-
-					if len(jpegData) > 0 {
-						r.lastKey = jpegData
-						r.lastKeyAt = now
-					}
+					payload := append([]byte(nil), r.keyBuf...)
+					r.enqueueSnapshotLocked(r.videoCodec, payload, now)
 				}
 				r.keyCollect = false
 			}
@@ -440,5 +443,71 @@ func (r *Recorder) saveThumbnail() {
 
 func (r *Recorder) Stop() error {
 	r.StopRecording()
+	r.stopSnapshotWorker()
 	return r.Connection.Stop()
+}
+
+func (r *Recorder) enqueueSnapshotLocked(codec string, payload []byte, at time.Time) {
+	task := snapshotTask{
+		codec:   codec,
+		payload: payload,
+		at:      at,
+	}
+
+	select {
+	case r.snapshotCh <- task:
+	default:
+		// Keep only the freshest snapshot task to bound latency and memory.
+		select {
+		case <-r.snapshotCh:
+		default:
+		}
+		select {
+		case r.snapshotCh <- task:
+		default:
+		}
+	}
+}
+
+func (r *Recorder) runSnapshotWorker() {
+	defer close(r.snapshotDone)
+
+	for {
+		select {
+		case <-r.snapshotStop:
+			return
+		case task := <-r.snapshotCh:
+			jpegData := r.snapshotToJPEG(task.codec, task.payload)
+			if len(jpegData) == 0 {
+				continue
+			}
+			r.mu.Lock()
+			r.lastKey = jpegData
+			r.lastKeyAt = task.at
+			r.mu.Unlock()
+		}
+	}
+}
+
+func (r *Recorder) snapshotToJPEG(codec string, payload []byte) []byte {
+	switch codec {
+	case core.CodecH264, core.CodecH265:
+		jpegData, err := ffmpeg.JPEGWithScale(annexb.DecodeAVCC(payload, true), 640, -1)
+		if err != nil {
+			log.Debug().Err(err).Str("src", r.src).Msg("[record] keyframe jpeg transcode failed")
+			return nil
+		}
+		return jpegData
+	case core.CodecJPEG:
+		return mjpeg.FixJPEG(payload)
+	default:
+		return nil
+	}
+}
+
+func (r *Recorder) stopSnapshotWorker() {
+	r.snapshotOnce.Do(func() {
+		close(r.snapshotStop)
+		<-r.snapshotDone
+	})
 }

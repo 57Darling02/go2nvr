@@ -29,24 +29,24 @@ jobs:
           go-version: '1.24'
 
       - name: Build Go binary
-        run: go build -ldflags "-s -w" -trimpath -o ./go2rtc
+        run: go build -ldflags "-s -w" -trimpath -o ./go2nvr
 
       - name: Test Go binary on linux
         if: matrix.os == 'ubuntu-latest'
         run: |
             if [ "${{ matrix.arch }}" = "amd64" ]; then
-              ./go2rtc -version
+              ./go2nvr -version
             else
               sudo apt-get update && sudo apt-get install -y qemu-user-static
               sudo cp /usr/bin/qemu-aarch64-static .
               sudo chown $USER:$USER ./qemu-aarch64-static
-              qemu-aarch64-static ./go2rtc -version
+              qemu-aarch64-static ./go2nvr -version
             fi
       - name: Test Go binary on macos
         if: matrix.os == 'macos-latest'
         run: |
             if [ "${{ matrix.arch }}" = "amd64" ]; then
-              ./go2rtc -version
+              ./go2nvr -version
             else
               echo "ARM64 architecture is not yet supported on macOS"
             fi
@@ -54,7 +54,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
             if ("${{ matrix.arch }}" -eq "amd64") {
-                .\go2rtc* -version
+                .\go2nvr* -version
             } else {
                 Write-Host "ARM64 architecture is not yet supported on Windows"
             }
@@ -83,10 +83,10 @@ jobs:
           platforms: linux/${{ matrix.platform }}
           push: false
           load: true
-          tags: go2rtc-${{ matrix.platform }}
+          tags: go2nvr-${{ matrix.platform }}
       - name: test run
         run: |
-          docker run --platform=linux/${{ matrix.platform }} --rm go2rtc-${{ matrix.platform }} go2rtc -version
+          docker run --platform=linux/${{ matrix.platform }} --rm go2nvr-${{ matrix.platform }} go2rtc -version
 
       - name: Build and push Hardware
         if: matrix.platform == 'amd64'
@@ -97,7 +97,7 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true
-          tags: go2rtc-${{ matrix.platform }}-hardware
+          tags: go2nvr-${{ matrix.platform }}-hardware
       - name: test run
         if: matrix.platform == 'amd64'
         run: |

@@ -22,12 +22,14 @@ type recordConfig struct {
 	Retention int    `json:"retention"`
 }
 
+type recordModuleConfig struct {
+	Dir       string       `yaml:"dir"`
+	Retention int          `yaml:"retention"`
+	Rules     []recordRule `yaml:"rules"`
+}
+
 var cfg struct {
-	Mod struct {
-		Dir       string       `yaml:"dir"`
-		Retention int          `yaml:"retention"`
-		Rules     []recordRule `yaml:"rules"`
-	} `yaml:"record"`
+	Mod recordModuleConfig `yaml:"record"`
 }
 
 var confMu sync.RWMutex
@@ -47,6 +49,7 @@ func initConfig() {
 	_ = os.MkdirAll(cfg.Mod.Dir, 0755)
 }
 
+// getRule returns a copy of the rule for a given source.
 func getRule(src string) (recordRule, bool) {
 	confMu.RLock()
 	defer confMu.RUnlock()
@@ -66,48 +69,66 @@ func getRules() []recordRule {
 	return rules
 }
 
+// upsertRule updates an existing rule or appends a new one.
+// The in-memory state is rolled back if config patching fails.
 func upsertRule(rule recordRule) error {
 	if rule.Prebuffer < 0 {
 		rule.Prebuffer = 0
 	}
 
 	confMu.Lock()
+	prev := cloneRecordModule(cfg.Mod)
+	next := cloneRecordModule(cfg.Mod)
 	found := false
-	for i, item := range cfg.Mod.Rules {
+	for i, item := range next.Rules {
 		if item.Src == rule.Src {
-			cfg.Mod.Rules[i] = rule
+			next.Rules[i] = rule
 			found = true
 			break
 		}
 	}
 	if !found {
-		cfg.Mod.Rules = append(cfg.Mod.Rules, rule)
+		next.Rules = append(next.Rules, rule)
 	}
-	rulesToSave := make([]recordRule, len(cfg.Mod.Rules))
-	copy(rulesToSave, cfg.Mod.Rules)
+	cfg.Mod = next
 	confMu.Unlock()
 
-	return app.PatchConfig([]string{"record", "rules"}, rulesToSave)
+	if err := patchRecordModule(next); err != nil {
+		confMu.Lock()
+		cfg.Mod = prev
+		confMu.Unlock()
+		return err
+	}
+	return nil
 }
 
+// removeRule deletes the rule for src if present.
+// The in-memory state is rolled back if config patching fails.
 func removeRule(src string) error {
 	confMu.Lock()
+	prev := cloneRecordModule(cfg.Mod)
+	next := cloneRecordModule(cfg.Mod)
 	idx := -1
-	for i, rule := range cfg.Mod.Rules {
+	for i, rule := range next.Rules {
 		if rule.Src == src {
 			idx = i
 			break
 		}
 	}
 	if idx >= 0 {
-		copy(cfg.Mod.Rules[idx:], cfg.Mod.Rules[idx+1:])
-		cfg.Mod.Rules = cfg.Mod.Rules[:len(cfg.Mod.Rules)-1]
+		copy(next.Rules[idx:], next.Rules[idx+1:])
+		next.Rules = next.Rules[:len(next.Rules)-1]
 	}
-	rulesToSave := make([]recordRule, len(cfg.Mod.Rules))
-	copy(rulesToSave, cfg.Mod.Rules)
+	cfg.Mod = next
 	confMu.Unlock()
 
-	return app.PatchConfig([]string{"record", "rules"}, rulesToSave)
+	if err := patchRecordModule(next); err != nil {
+		confMu.Lock()
+		cfg.Mod = prev
+		confMu.Unlock()
+		return err
+	}
+	return nil
 }
 
 func getRecordConfig() recordConfig {
@@ -121,36 +142,34 @@ func getRecordConfig() recordConfig {
 
 func updateRecordConfig(dir *string, retention *int) error {
 	confMu.Lock()
+	prev := cloneRecordModule(cfg.Mod)
+	next := cloneRecordModule(cfg.Mod)
 	if dir != nil {
 		if *dir == "" || *dir == "/" {
-			cfg.Mod.Dir = "./records"
+			next.Dir = "./records"
 		} else {
-			cfg.Mod.Dir = *dir
+			next.Dir = *dir
 		}
-		if err := os.MkdirAll(cfg.Mod.Dir, 0755); err != nil {
+		if err := os.MkdirAll(next.Dir, 0755); err != nil {
 			confMu.Unlock()
 			return err
 		}
 	}
 	if retention != nil {
 		if *retention <= 0 {
-			cfg.Mod.Retention = 7
+			next.Retention = 7
 		} else {
-			cfg.Mod.Retention = *retention
+			next.Retention = *retention
 		}
 	}
-	saveCfg := cfg.Mod
+	cfg.Mod = next
 	confMu.Unlock()
 
-	if dir != nil {
-		if err := app.PatchConfig([]string{"record", "dir"}, saveCfg.Dir); err != nil {
-			return err
-		}
-	}
-	if retention != nil {
-		if err := app.PatchConfig([]string{"record", "retention"}, saveCfg.Retention); err != nil {
-			return err
-		}
+	if err := patchRecordModule(next); err != nil {
+		confMu.Lock()
+		cfg.Mod = prev
+		confMu.Unlock()
+		return err
 	}
 	return nil
 }
@@ -198,4 +217,21 @@ func (r recordRule) triggerID() int {
 		return r.TriggerID
 	}
 	return 0
+}
+
+func cloneRecordModule(in recordModuleConfig) recordModuleConfig {
+	out := in
+	if len(in.Rules) == 0 {
+		out.Rules = nil
+		return out
+	}
+	out.Rules = make([]recordRule, len(in.Rules))
+	copy(out.Rules, in.Rules)
+	return out
+}
+
+// patchRecordModule writes the whole "record" section in one operation
+// to avoid partial updates of nested keys.
+func patchRecordModule(mod recordModuleConfig) error {
+	return app.PatchConfig([]string{"record"}, mod)
 }

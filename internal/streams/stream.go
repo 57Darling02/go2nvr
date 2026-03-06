@@ -94,6 +94,18 @@ func (s *Stream) RemoveProducer(prod core.Producer) {
 	s.mu.Unlock()
 }
 
+func (s *Stream) HasConsumer(cons core.Consumer) bool {
+	// Called from recovery paths; keep it lock-protected and allocation-free.
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, consumer := range s.consumers {
+		if consumer == cons {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *Stream) stopProducers() {
 	if s.pending.Load() > 0 {
 		log.Trace().Msg("[streams] skip stop pending producer")
