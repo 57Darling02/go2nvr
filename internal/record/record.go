@@ -327,13 +327,12 @@ func rulesHandler(w http.ResponseWriter, r *http.Request) {
 		startTriggerForRule(rule)
 		if rec == nil && attachErr != nil {
 			api.ResponseJSON(w, map[string]interface{}{
-				"src":               rule.Src,
-				"prebuffer":         rule.Prebuffer,
-				"trigger_id":        rule.TriggerID,
-				"trigger_threshold": rule.TriggerThreshold,
-				"trigger_post":      rule.TriggerPost,
-				"trigger_interval":  rule.TriggerInterval,
-				"attach_error":      attachErr.Error(),
+				"src":              rule.Src,
+				"prebuffer":        rule.Prebuffer,
+				"trigger_id":       rule.TriggerID,
+				"trigger_interval": rule.TriggerInterval,
+				"trigger_params":   rule.TriggerParams,
+				"attach_error":     attachErr.Error(),
 			})
 			return
 		}

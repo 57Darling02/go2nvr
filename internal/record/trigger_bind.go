@@ -17,7 +17,7 @@ const triggerAttachRetryInterval = 2 * time.Second
 
 func initTrigger() {
 	rectrigger.SetLogger(log)
-	triggerManager = rectrigger.NewManager(getTriggerFrame, Start, Stop, isRecording)
+	triggerManager = rectrigger.NewManager(getTriggerFrame, Start, Stop, isStreamRecording)
 	triggerAttachState.next = make(map[string]time.Time)
 }
 
@@ -29,9 +29,9 @@ func startTriggerForRule(rule recordRule) {
 		Src:       rule.Src,
 		Enabled:   rule.triggerEnabled(),
 		TypeID:    rule.triggerID(),
-		Threshold: rule.triggerThreshold(),
-		Post:      rule.triggerPostDuration(),
+		Prebuffer: rule.Prebuffer,
 		Interval:  rule.triggerInterval(),
+		Params:    rule.TriggerParams,
 	})
 }
 
@@ -63,17 +63,6 @@ func getTriggerFrame(src string) (rectrigger.RawFrame, bool) {
 	return rectrigger.RawFrame{Payload: b, At: at}, true
 }
 
-func isRecording(src string) bool {
-	mu.RLock()
-	rec := recorders[src]
-	mu.RUnlock()
-	if rec == nil {
-		return false
-	}
-	recording, _, _ := rec.State()
-	return recording
-}
-
 func ensureRecorderForTrigger(src string) *Recorder {
 	rule, ok := getRule(src)
 	if !ok {
@@ -102,4 +91,15 @@ func resetTriggerAttachState(src string) {
 	triggerAttachState.mu.Lock()
 	delete(triggerAttachState.next, src)
 	triggerAttachState.mu.Unlock()
+}
+
+func isStreamRecording(src string) bool {
+	mu.RLock()
+	rec := recorders[src]
+	mu.RUnlock()
+	if rec == nil {
+		return false
+	}
+	recording, _, _ := rec.State()
+	return recording
 }

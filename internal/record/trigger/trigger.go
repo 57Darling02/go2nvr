@@ -4,18 +4,22 @@ import (
 	"bytes"
 	"image/jpeg"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
 )
 
+// Logger
 var log zerolog.Logger
 
 func SetLogger(l zerolog.Logger) {
 	log = l
 }
 
+// Core Types
 type Frame struct {
 	JPEG       []byte
 	JPEGWidth  int
@@ -35,13 +39,30 @@ type Rule struct {
 	Src       string
 	Enabled   bool
 	TypeID    int
-	Threshold int
-	Post      time.Duration
+	Prebuffer int
 	Interval  time.Duration
+	Params    map[string]interface{}
 }
 
+type DetectorParam struct {
+	Key          string      `json:"key"`
+	Type         string      `json:"type"`
+	DefaultValue interface{} `json:"default,omitempty"`
+	Min          *int        `json:"min,omitempty"`
+	Max          *int        `json:"max,omitempty"`
+	Tip          string      `json:"tip,omitempty"`
+}
+
+type DetectorInfo struct {
+	ID     int             `json:"id"`
+	Key    string          `json:"key"`
+	Name   string          `json:"name"`
+	Params []DetectorParam `json:"params,omitempty"`
+}
+
+// Contracts
 type Detector interface {
-	Detect(prev, cur Frame) bool
+	Detect(prev, cur *Frame, isRecording bool) bool
 }
 
 type DetectorFactory func(rule Rule) Detector
@@ -51,28 +72,112 @@ type StartFunc func(src string)
 type StopFunc func(src string)
 type IsRecordingFunc func(src string) bool
 
-type Manager struct {
-	getFrame    GetFrameFunc
-	start       StartFunc
-	stop        StopFunc
-	isRecording IsRecordingFunc
+// Rule Param Parsing
 
-	mu      sync.Mutex
-	workers map[string]*worker
+// NumberParam parses one numeric param from rule params.
+// If parsing fails or value is out of [min,max], it returns schema default.
+func (r Rule) NumberParam(spec DetectorParam) int {
+	def, ok := numberFromValue(spec.DefaultValue)
+	if !ok {
+		return 0
+	}
+	if len(r.Params) == 0 {
+		return def
+	}
+	raw, has := r.Params[spec.Key]
+	if !has {
+		return def
+	}
+	v, ok := numberFromValue(raw)
+	if !ok {
+		return def
+	}
+	if spec.Min != nil && v < *spec.Min {
+		return def
+	}
+	if spec.Max != nil && v > *spec.Max {
+		return def
+	}
+	return v
 }
 
-type worker struct {
-	rule     Rule
-	detector Detector
-	stopCh   chan struct{}
+// StringParam parses one string param from rule params.
+// Empty string returns schema default.
+func (r Rule) StringParam(spec DetectorParam) string {
+	def, _ := spec.DefaultValue.(string)
+	if len(r.Params) == 0 {
+		return def
+	}
+	raw, has := r.Params[spec.Key]
+	if !has {
+		return def
+	}
+	s, ok := raw.(string)
+	if !ok {
+		return def
+	}
+	if strings.TrimSpace(s) == "" {
+		return def
+	}
+	return s
 }
 
-type DetectorInfo struct {
-	ID   int    `json:"id"`
-	Key  string `json:"key"`
-	Name string `json:"name"`
+// ParseBySchema parses all params declared in schema by each param type.
+// Supported types:
+// - "number" => int
+// - "string" => string
+func (r Rule) ParseBySchema(schema []DetectorParam) map[string]interface{} {
+	out := make(map[string]interface{}, len(schema))
+	for _, spec := range schema {
+		switch strings.ToLower(spec.Type) {
+		case "number":
+			out[spec.Key] = r.NumberParam(spec)
+		case "string":
+			out[spec.Key] = r.StringParam(spec)
+		}
+	}
+	return out
 }
 
+func numberFromValue(v interface{}) (int, bool) {
+	switch n := v.(type) {
+	case int:
+		return n, true
+	case int8:
+		return int(n), true
+	case int16:
+		return int(n), true
+	case int32:
+		return int(n), true
+	case int64:
+		return int(n), true
+	case uint:
+		return int(n), true
+	case uint8:
+		return int(n), true
+	case uint16:
+		return int(n), true
+	case uint32:
+		return int(n), true
+	case uint64:
+		return int(n), true
+	case float32:
+		return int(n), true
+	case float64:
+		return int(n), true
+	case string:
+		if strings.TrimSpace(n) == "" {
+			return 0, false
+		}
+		i, err := strconv.Atoi(n)
+		if err == nil {
+			return i, true
+		}
+	}
+	return 0, false
+}
+
+// Detector Registry
 type registeredDetector struct {
 	info    DetectorInfo
 	factory DetectorFactory
@@ -84,24 +189,37 @@ var (
 	registryByID  = map[int]registeredDetector{}
 )
 
-func Register(id int, key, name string, factory DetectorFactory) {
+func Register(id int, key, name string, params []DetectorParam, factory DetectorFactory) {
 	if key == "" || factory == nil {
 		return
 	}
+	regMu.Lock()
+	defer regMu.Unlock()
+
+	if _, exists := registryByKey[key]; exists {
+		log.Warn().Str("key", key).Msg("trigger register ignored: duplicate key")
+		return
+	}
+	if id > 0 {
+		if _, exists := registryByID[id]; exists {
+			log.Warn().Int("id", id).Str("key", key).Msg("trigger register ignored: duplicate id")
+			return
+		}
+	}
+
 	d := registeredDetector{
 		info: DetectorInfo{
-			ID:   id,
-			Key:  key,
-			Name: name,
+			ID:     id,
+			Key:    key,
+			Name:   name,
+			Params: copyDetectorParams(params),
 		},
 		factory: factory,
 	}
-	regMu.Lock()
 	registryByKey[key] = d
 	if id > 0 {
 		registryByID[id] = d
 	}
-	regMu.Unlock()
 }
 
 func ListDetectors() []DetectorInfo {
@@ -145,6 +263,32 @@ func DetectorByID(id int) (DetectorInfo, bool) {
 	return d.info, true
 }
 
+func copyDetectorParams(in []DetectorParam) []DetectorParam {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]DetectorParam, len(in))
+	copy(out, in)
+	return out
+}
+
+// Manager
+type Manager struct {
+	getFrame    GetFrameFunc
+	start       StartFunc
+	stop        StopFunc
+	isRecording IsRecordingFunc
+
+	mu      sync.Mutex
+	workers map[string]*worker
+}
+
+type worker struct {
+	rule     Rule
+	detector Detector
+	stopCh   chan struct{}
+}
+
 func NewManager(getFrame GetFrameFunc, start StartFunc, stop StopFunc, isRecording IsRecordingFunc) *Manager {
 	return &Manager{
 		getFrame:    getFrame,
@@ -157,10 +301,7 @@ func NewManager(getFrame GetFrameFunc, start StartFunc, stop StopFunc, isRecordi
 
 func (m *Manager) Apply(rule Rule) {
 	if rule.Interval <= 0 {
-		rule.Interval = 250 * time.Millisecond
-	}
-	if rule.Post <= 0 {
-		rule.Post = 10 * time.Second
+		rule.Interval = 400 * time.Millisecond
 	}
 
 	m.Stop(rule.Src)
@@ -209,75 +350,60 @@ func (m *Manager) run(w *worker) {
 	defer ticker.Stop()
 
 	var (
-		prev       Frame
-		hasPrev    bool
-		prevAt     time.Time
-		lastMotion time.Time
-		active     bool
-		moveCount  int
+		prev    Frame
+		hasPrev bool
+		prevAt  time.Time
 	)
 
 	for {
 		select {
 		case <-w.stopCh:
-			if active {
-				m.stop(w.rule.Src)
-			}
 			return
 		case <-ticker.C:
 		}
 
-		recording := m.isRecording != nil && m.isRecording(w.rule.Src)
-		if active && !recording {
-			active = false
-			moveCount = 0
+		isRecording := false
+		if m.isRecording != nil {
+			isRecording = m.isRecording(w.rule.Src)
 		}
-		if !active && recording {
-			active = true
+
+		var (
+			prevPtr *Frame
+			curPtr  *Frame
+		)
+		if hasPrev {
+			prevCopy := prev
+			prevPtr = &prevCopy
 		}
 
 		raw, ok := m.getFrame(w.rule.Src)
-		if !ok || raw.At.Equal(prevAt) {
-			if active && !lastMotion.IsZero() && time.Since(lastMotion) >= w.rule.Post {
-				m.stop(w.rule.Src)
-				active = false
-				moveCount = 0
+		if ok && !raw.At.Equal(prevAt) {
+			prevAt = raw.At
+
+			frame, normOK := normalizeFrame(raw)
+			if normOK {
+				frameCopy := frame
+				curPtr = &frameCopy
 			}
-			continue
-		}
-		prevAt = raw.At
-
-		frame, ok := normalizeFrame(raw)
-		if !ok {
-			continue
 		}
 
-		moved := false
-		if hasPrev {
-			moved = w.detector.Detect(prev, frame)
-		}
-
-		prev = frame
-		hasPrev = true
-
-		if moved {
-			moveCount++
-			lastMotion = time.Now()
-			if !active && moveCount >= 1 {
+		target := w.detector.Detect(prevPtr, curPtr, isRecording)
+		if target != isRecording {
+			if target {
 				m.start(w.rule.Src)
-				active = true
+			} else {
+				m.stop(w.rule.Src)
 			}
-			continue
 		}
-		moveCount = 0
 
-		if active && !lastMotion.IsZero() && time.Since(lastMotion) >= w.rule.Post {
-			m.stop(w.rule.Src)
-			active = false
+		if curPtr != nil {
+			prev = *curPtr
+			hasPrev = true
 		}
 	}
 }
 
+// Frame Normalize
 func normalizeFrame(raw RawFrame) (Frame, bool) {
 	img, err := jpeg.Decode(bytes.NewReader(raw.Payload))
 	if err != nil {

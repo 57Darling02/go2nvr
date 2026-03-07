@@ -9,12 +9,11 @@ import (
 )
 
 type recordRule struct {
-	Src              string `yaml:"src" json:"src"`
-	Prebuffer        int    `yaml:"prebuffer" json:"prebuffer"`
-	TriggerID        int    `yaml:"trigger_id" json:"trigger_id,omitempty"`
-	TriggerThreshold int    `yaml:"trigger_threshold" json:"trigger_threshold,omitempty"`
-	TriggerPost      int    `yaml:"trigger_post" json:"trigger_post,omitempty"`
-	TriggerInterval  int    `yaml:"trigger_interval" json:"trigger_interval,omitempty"`
+	Src             string                 `yaml:"src" json:"src"`
+	Prebuffer       int                    `yaml:"prebuffer" json:"prebuffer"`
+	TriggerID       int                    `yaml:"trigger_id" json:"trigger_id,omitempty"`
+	TriggerInterval int                    `yaml:"trigger_interval" json:"trigger_interval,omitempty"`
+	TriggerParams   map[string]interface{} `yaml:"trigger_params" json:"trigger_params,omitempty"`
 }
 
 type recordConfig struct {
@@ -55,7 +54,7 @@ func getRule(src string) (recordRule, bool) {
 	defer confMu.RUnlock()
 	for _, rule := range cfg.Mod.Rules {
 		if rule.Src == src {
-			return rule, true
+			return cloneRecordRule(rule), true
 		}
 	}
 	return recordRule{}, false
@@ -65,7 +64,9 @@ func getRules() []recordRule {
 	confMu.RLock()
 	defer confMu.RUnlock()
 	rules := make([]recordRule, len(cfg.Mod.Rules))
-	copy(rules, cfg.Mod.Rules)
+	for i, rule := range cfg.Mod.Rules {
+		rules[i] = cloneRecordRule(rule)
+	}
 	return rules
 }
 
@@ -187,20 +188,6 @@ func (r recordRule) prebufferDuration() time.Duration {
 	return time.Duration(r.Prebuffer) * time.Second
 }
 
-func (r recordRule) triggerThreshold() int {
-	if r.TriggerThreshold <= 0 {
-		return 14
-	}
-	return r.TriggerThreshold
-}
-
-func (r recordRule) triggerPostDuration() time.Duration {
-	if r.TriggerPost <= 0 {
-		return 10 * time.Second
-	}
-	return time.Duration(r.TriggerPost) * time.Second
-}
-
 func (r recordRule) triggerInterval() time.Duration {
 	if r.TriggerInterval <= 0 {
 		return 250 * time.Millisecond
@@ -226,7 +213,22 @@ func cloneRecordModule(in recordModuleConfig) recordModuleConfig {
 		return out
 	}
 	out.Rules = make([]recordRule, len(in.Rules))
-	copy(out.Rules, in.Rules)
+	for i, rule := range in.Rules {
+		out.Rules[i] = cloneRecordRule(rule)
+	}
+	return out
+}
+
+func cloneRecordRule(in recordRule) recordRule {
+	out := in
+	if len(in.TriggerParams) == 0 {
+		out.TriggerParams = nil
+		return out
+	}
+	out.TriggerParams = make(map[string]interface{}, len(in.TriggerParams))
+	for k, v := range in.TriggerParams {
+		out.TriggerParams[k] = v
+	}
 	return out
 }
 
