@@ -3,6 +3,7 @@ package record
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -77,9 +78,14 @@ func Stop(src string) {
 }
 
 func ensureRecorder(src string, prebuffer time.Duration) *Recorder {
+	rec, _ := ensureRecorderWithErr(src, prebuffer)
+	return rec
+}
+
+func ensureRecorderWithErr(src string, prebuffer time.Duration) (*Recorder, error) {
 	name := normalizeSrc(src)
 	if name == "" {
-		return nil
+		return nil, errors.New("empty source")
 	}
 
 	mu.Lock()
@@ -91,10 +97,10 @@ func ensureRecorder(src string, prebuffer time.Duration) *Recorder {
 		stream := streams.Get(name)
 		if stream != nil && !stream.HasConsumer(rec) {
 			if err := stream.AddConsumer(rec); err != nil {
-				return nil
+				return nil, fmt.Errorf("re-attach recorder consumer: %w", err)
 			}
 		}
-		return rec
+		return rec, nil
 	}
 	rec := newRecorder(name, prebuffer)
 	recorders[name] = rec
@@ -106,16 +112,16 @@ func ensureRecorder(src string, prebuffer time.Duration) *Recorder {
 		delete(recorders, name)
 		mu.Unlock()
 		_ = rec.Stop()
-		return nil
+		return nil, errors.New("stream not found while attaching recorder")
 	}
 	if err := stream.AddConsumer(rec); err != nil {
 		mu.Lock()
 		delete(recorders, name)
 		mu.Unlock()
 		_ = rec.Stop()
-		return nil
+		return nil, fmt.Errorf("add recorder consumer: %w", err)
 	}
-	return rec
+	return rec, nil
 }
 
 func detachRecorder(name string, rec *Recorder) {
@@ -309,24 +315,28 @@ func rulesHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "src required", http.StatusBadRequest)
 			return
 		}
-		if streams.Get(rule.Src) == nil {
-			http.Error(w, "stream not found", http.StatusNotFound)
-			return
-		}
 		if err := upsertRule(rule); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
-		rec := ensureRecorder(rule.Src, rule.prebufferDuration())
+		rec, attachErr := ensureRecorderWithErr(rule.Src, rule.prebufferDuration())
 		if rec == nil {
-			if err := removeRule(rule.Src); err != nil {
-				log.Warn().Err(err).Str("src", rule.Src).Msg("[record] rollback rule failed")
-			}
-			http.Error(w, "attach recorder failed", http.StatusInternalServerError)
-			return
+			log.Warn().Err(attachErr).Str("src", rule.Src).Msg("[record] recorder not attached yet, rule persisted")
 		}
 		startTriggerForRule(rule)
+		if rec == nil && attachErr != nil {
+			api.ResponseJSON(w, map[string]interface{}{
+				"src":               rule.Src,
+				"prebuffer":         rule.Prebuffer,
+				"trigger_id":        rule.TriggerID,
+				"trigger_threshold": rule.TriggerThreshold,
+				"trigger_post":      rule.TriggerPost,
+				"trigger_interval":  rule.TriggerInterval,
+				"attach_error":      attachErr.Error(),
+			})
+			return
+		}
 		api.ResponseJSON(w, rule)
 
 	case http.MethodDelete:

@@ -64,6 +64,7 @@
 - `trigger_threshold`: 检测阈值（检测器自行解释）
 - `trigger_post`: 触发后延时停止秒数
 - `trigger_interval`: 检测周期，单位毫秒
+- 规则会先持久化；若当前流未就绪或临时中断，接口仍返回 200，并在响应中附带 `attach_error`（仅提示，不影响规则生效）
 
 **DELETE** `/api/record/rules?src={stream_name}`  
 删除规则并停止该流 trigger 协程。

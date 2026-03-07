@@ -2,10 +2,8 @@ streams:
   # Example stream
   # camera1:
   #   - rtsp://username:passwd@192.168.1.13:8080/h264_ulaw.sdp
-  # camera2:
-  #   - rtsp://username:passwd0@192.168.1.176:8080/h264_ulaw.sdp
-  test:
-    - rtsp://192.168.123.42:8080/h264_ulaw.sdp
+  test2:
+    - rtsp://172.30.195.106:8080/h264_ulaw.sdp
 api:
   listen: ":1984"
   username: "username"
@@ -15,11 +13,11 @@ api:
 # It is recommended to configure the record settings in the WebUI.
 record:
   dir: ./records
-  retention: 7
+  retention: 3
   rules:
-    - src: test
+    - src: test2
       prebuffer: 10
       trigger_id: 1
       trigger_threshold: 14
       trigger_post: 10
-      trigger_interval: 250
+      trigger_interval: 500

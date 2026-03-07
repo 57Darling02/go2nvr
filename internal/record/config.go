@@ -230,8 +230,17 @@ func cloneRecordModule(in recordModuleConfig) recordModuleConfig {
 	return out
 }
 
-// patchRecordModule writes the whole "record" section in one operation
-// to avoid partial updates of nested keys.
 func patchRecordModule(mod recordModuleConfig) error {
-	return app.PatchConfig([]string{"record"}, mod)
+	if err := app.PatchConfig([]string{"record", "dir"}, mod.Dir); err != nil {
+		return err
+	}
+	if err := app.PatchConfig([]string{"record", "retention"}, mod.Retention); err != nil {
+		return err
+	}
+
+	rules := mod.Rules
+	if rules == nil {
+		rules = []recordRule{}
+	}
+	return app.PatchConfig([]string{"record", "rules"}, rules)
 }
