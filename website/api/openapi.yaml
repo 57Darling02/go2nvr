@@ -822,6 +822,141 @@ paths:
         "404":
           description: Stream not found
 
+  /api/ttspush/push:
+    post:
+      summary: Synthesize and push audio in-memory
+      description: |
+        Streaming-only endpoint with no local file write.
+        Supports `ipwebcam`/`wss` and `backchannel`/`stream` targets.
+        Parameters can be provided via query string or JSON body (query overrides body).
+      tags: [ FFmpeg ]
+      parameters:
+        - name: text
+          in: query
+          description: Text to synthesize
+          required: false
+          schema: { type: string }
+        - name: voice
+          in: query
+          description: Edge voice name
+          required: false
+          schema: { type: string }
+        - name: rate
+          in: query
+          description: Prosody rate
+          required: false
+          schema: { type: string }
+        - name: pitch
+          in: query
+          description: Prosody pitch
+          required: false
+          schema: { type: string }
+        - name: volume
+          in: query
+          description: Prosody volume
+          required: false
+          schema: { type: string }
+        - name: format
+          in: query
+          description: Output format for backchannel (currently wav only)
+          required: false
+          schema: { type: string, enum: [ wav ] }
+        - name: target_type
+          in: query
+          description: Push target type
+          required: false
+          schema: { type: string, enum: [ ipwebcam, wss, backchannel, stream ] }
+        - name: target
+          in: query
+          description: Generic target alias for url/dst
+          required: false
+          schema: { type: string }
+        - name: dst
+          in: query
+          description: Destination stream name for backchannel
+          required: false
+          schema: { type: string }
+        - name: url
+          in: query
+          description: WebSocket URL for ipwebcam target
+          required: false
+          schema: { type: string }
+        - name: proxy
+          in: query
+          description: Optional HTTP proxy URL
+          required: false
+          schema: { type: string }
+        - name: connect_timeout
+          in: query
+          description: Connection timeout in seconds
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: receive_timeout
+          in: query
+          description: Receive timeout in seconds
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: sample_rate
+          in: query
+          description: PCM sample rate for ipwebcam payload
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: chunk_ms
+          in: query
+          description: Chunk duration in milliseconds for ipwebcam push
+          required: false
+          schema: { type: integer, minimum: 1 }
+        - name: realtime
+          in: query
+          description: Send in realtime pace for ipwebcam
+          required: false
+          schema: { type: boolean }
+        - name: insecure_tls
+          in: query
+          description: Skip TLS verification for wss target
+          required: false
+          schema: { type: boolean }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text: { type: string }
+                voice: { type: string }
+                rate: { type: string }
+                pitch: { type: string }
+                volume: { type: string }
+                format: { type: string, enum: [ wav ] }
+                target_type: { type: string, enum: [ ipwebcam, wss, backchannel, stream ] }
+                target: { type: string }
+                dst: { type: string }
+                url: { type: string }
+                proxy: { type: string }
+                connect_timeout: { type: integer }
+                receive_timeout: { type: integer }
+                sample_rate: { type: integer }
+                chunk_ms: { type: integer }
+                realtime: { type: boolean }
+                insecure_tls: { type: boolean }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example: { engine: "edge-tts-go", target_type: "ipwebcam", target: "wss://192.168.1.10:8080/audioin.wav", format: "pcm16le", bytes: 182044 }
+        "400":
+          description: Invalid request
+        "405":
+          description: Method not allowed
+        "502":
+          description: Failed to synthesize or push
+        "503":
+          description: Target queue full or target unavailable
+        "504":
+          description: Request timed out or canceled
+
 
   /api/dvrip:
     get:

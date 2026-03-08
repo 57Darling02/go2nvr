@@ -1,9 +1,7 @@
 streams:
   # Example stream
-  # camera1:
-  #   - rtsp://username:passwd@192.168.1.13:8080/h264_ulaw.sdp
-  test1:
-    - rtsp://192.168.123.42:8080/h264_ulaw.sdp
+  exampleCam:
+    - rtsp://username:password@192.168.123.42:8080/h264_ulaw.sdp
 api:
   listen: ":1984"
   username: "username"
@@ -22,14 +20,6 @@ record:
       prebuffer: 10
       trigger_id: 1
       trigger_interval: 500
-      trigger_params:
-        min_hits: 1
-        post_sec: 10
-        threshold: 14
-    - src: test1
-      prebuffer: 10
-      trigger_id: 1
-      trigger_interval: 250
       trigger_params:
         min_hits: 1
         post_sec: 10
