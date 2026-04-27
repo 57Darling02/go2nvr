@@ -1,82 +1,220 @@
-<h1 align="center">
-  <a href="https://github.com/AlexxIT/go2rtc">
-    <img src="./website/images/logo.gif" alt="go2rtc - GitHub">
-  </a>
-</h1>
+# go2nvr
+
 <p align="center">
-  <a href="https://github.com/AlexxIT/go2rtc/stargazers" target="_blank">
-    <img style="display: inline" src="https://img.shields.io/github/stars/AlexxIT/go2rtc?style=flat-square&logo=github" alt="go2rtc - GitHub Stars">
+  <a href="https://github.com/57Darling02/go2nvr/actions/workflows/build.yml" target="_blank">
+    <img style="display: inline" src="https://img.shields.io/github/actions/workflow/status/57Darling02/go2nvr/build.yml?style=flat-square&logo=github" alt="go2nvr build status">
   </a>
-  <a href="https://hub.docker.com/r/alexxit/go2rtc" target="_blank">
-    <img style="display: inline" src="https://img.shields.io/docker/pulls/alexxit/go2rtc?style=flat-square&logo=docker&logoColor=white&label=pulls" alt="go2rtc - Docker Pulls">
+  <a href="https://github.com/57Darling02/go2nvr/stargazers" target="_blank">
+    <img style="display: inline" src="https://img.shields.io/github/stars/57Darling02/go2nvr?style=flat-square&logo=github" alt="go2nvr GitHub stars">
   </a>
-  <a href="https://github.com/AlexxIT/go2rtc/releases" target="_blank">
-    <img style="display: inline" src="https://img.shields.io/github/downloads/AlexxIT/go2rtc/total?color=blue&style=flat-square&logo=github" alt="go2rtc - GitHub Downloads">
-  </a>
-</p>
-<p align="center">
-  <a href="https://trendshift.io/repositories/4628" target="_blank">
-    <img src="https://trendshift.io/api/badge/repositories/4628" alt="go2rtc - Trendshift"/>
+  <a href="./LICENSE" target="_blank">
+    <img style="display: inline" src="https://img.shields.io/github/license/57Darling02/go2nvr?style=flat-square" alt="go2nvr license">
   </a>
 </p>
 
-Ultimate camera streaming application with support for dozens formats and protocols.
+**go2nvr 是一个基于 [go2rtc](https://github.com/AlexxIT/go2rtc) 的 0 依赖、高性能、轻量级 NVR。**
 
-- zero-dependency [small app](#go2rtc-binary) for all OS (Windows, macOS, Linux, FreeBSD)
-- zero-delay for many [supported protocols](#codecs-madness) (lowest possible streaming latency)
-- [streaming input](#streaming-input) from dozens formats and protocols
-- [streaming output](#streaming-output) in all popular formats
-- [streaming ingest](#streaming-ingest) in a number of popular formats
-- [publish](#publish-stream) any source to popular streaming services (YouTube, Telegram)
-- on-the-fly transcoding only if necessary via [FFmpeg](internal/ffmpeg/README.md)
-- [two-way audio](#two-way-audio) support for many formats
-- [streaming audio](#stream-to-camera) to all cameras with [two-way audio](#two-way-audio) support
-- mixing tracks from different sources to single stream
-- [auto-match](www/README.md#javascript-api) client-supported streaming formats and codecs
-- [streaming stats](#streaming-stats) for all active connections
-- can be [integrated to any project](#projects-using-go2rtc) or be used as [standalone app](#go2rtc-binary)
+它保留 go2rtc 的多协议接入、低延迟预览和单文件部署能力，并补上 NVR 最常用的能力：网页仪表盘、按需录像、运动触发、预录制缓冲、录像回放、文件管理，以及把文字转成语音推送到摄像头。
 
-#### Inspired by
+go2nvr 不想做一个重型 AI 监控平台，也不只是一个流媒体转发器。它想填补的是两者之间的生态位：**像 go2rtc 一样轻，像 NVR 一样能管理录像。**
 
-- series of streaming projects from [@deepch](https://github.com/deepch)
-- [webrtc](https://github.com/pion/webrtc) go library and whole [@pion](https://github.com/pion) team
-- [rtsp-simple-server](https://github.com/aler9/rtsp-simple-server) idea from [@aler9](https://github.com/aler9)
-- [GStreamer](https://gstreamer.freedesktop.org/) framework pipeline idea
-- [MediaSoup](https://mediasoup.org/) framework routing idea
-- HomeKit Accessory Protocol from [@brutella](https://github.com/brutella/hap)
-- creator of the project's logo [@v_novoseltsev](https://www.instagram.com/v_novoseltsev)
+## 为什么做 go2nvr？
 
-<br>
-<details>
-<summary><b>Table of Contents</b></summary>
+现有监控方案常常处在两个极端：
 
-- [Installation](#installation)
-  - [go2rtc: Binary](#go2rtc-binary)
-  - [go2rtc: Docker](#go2rtc-docker)
-  - [go2rtc: Home Assistant add-on](#go2rtc-home-assistant-add-on)
-  - [go2rtc: Home Assistant Integration](#go2rtc-home-assistant-integration)
-  - [go2rtc: Master version](#go2rtc-master-version)
-- [Configuration](#configuration)
-- [Features](#features)
-  - [Streaming input](#streaming-input)
-  - [Streaming output](#streaming-output)
-  - [Streaming ingest](#streaming-ingest)
-  - [Two-way audio](#two-way-audio)
-  - [Stream to camera](#stream-to-camera)
-  - [Publish stream](#publish-stream)
-  - [Preload stream](#preload-stream)
-  - [Streaming stats](#streaming-stats)
-- [Codecs](#codecs)
-  - [Codecs filters](#codecs-filters)
-  - [Codecs madness](#codecs-madness)
-  - [Built-in transcoding](#built-in-transcoding)
-  - [Codecs negotiation](#codecs-negotiation)
-- [Security](#security)
-- [Projects using go2rtc](#projects-using-go2rtc)
-- [Camera experience](#camera-experience)
-- [Tips](#tips)
+- Frigate、Shinobi、ZoneMinder 功能强，但部署链路重，常常依赖 Docker、数据库、AI 推理或更强硬件。
+- MediaMTX、go2rtc 很轻，协议能力很强，但更像流媒体网关，不是开箱可用的 NVR。
+- tinyCam Monitor 很适合移动端，但缺少一个面向服务器和 Web 管理的轻量级 NVR 形态。
 
-</details>
+go2nvr 想补上中间这一层：**一个 0 依赖、高性能、轻量但仍然完整可用的 NVR。**
+
+这里的 0 依赖主要指核心部署体验：不要求 Docker、数据库、消息队列、复杂运行时或一整套外部服务。下载/编译一个程序，写好配置，就能接入视频流、实时预览、触发录像和管理回放。FFmpeg 等能力仍可作为可选增强，用来处理特殊协议或编解码兼容问题。
+
+## 适合这些场景
+
+- 你需要一个轻量 NVR，而不是一套重型监控平台。
+- 你只关心稳定接入、实时预览、录像、回放和文件管理，不想先搭一堆基础设施。
+- 你已经在用 go2rtc、MediaMTX 之类的流媒体网关，但还缺少 NVR 层。
+- 你想用 WebUI 管理 RTSP、ONVIF、IP Webcam、手机摄像头等不同来源的视频流。
+- 你希望它能跑在 NAS、ARM 小主机、边缘网关、低功耗 Linux 设备上。
+- 你手头设备性能一般，或者环境不适合 Docker，这时 go2nvr 的轻量特性会更明显。
+
+## 核心功能
+
+- 基于 go2rtc：继承 RTSP、WebRTC、HLS、ONVIF 等多协议接入与转发能力。
+- 实时预览：通过 Web 页面查看摄像头直播。
+- 手动录像：在 WebUI 或 HTTP API 中按需开始、停止录像。
+- 运动触发录像：内置简单帧差检测，只在画面变化时录制。
+- 预录制缓冲：触发录像前保留若干秒视频，避免错过关键画面。
+- 快照与缩略图：触发帧可用于快速识别录像内容。
+- 录像管理：浏览、播放、下载、删除历史录像。
+- 自动保留策略：按天清理旧录像，控制磁盘占用。
+- TTS 语音推送：将文字转语音，并推送到 IP Webcam 或支持 backchannel 的摄像头。
+- 轻量部署：单进程、核心链路不依赖 Docker/数据库/消息队列，适合 NAS、ARM 设备、边缘节点和小主机。
+
+## 和其他方案的区别
+
+| 项目 | 定位 | 优点 | go2nvr 与之相比 |
+| --- | --- | --- | --- |
+| go2rtc | 流媒体网关 | 协议强、低延迟、轻量 | 在其基础上增加录像、触发、回放和 TTS |
+| MediaMTX | 流媒体服务器 | 转发能力强、性能好 | 更偏 NVR，提供 Web 管理和录像文件管理 |
+| Frigate | AI NVR | AI 检测强、生态成熟 | 更轻，不依赖重型 AI 和 Docker |
+| Shinobi / ZoneMinder | 完整监控系统 | 功能完整 | 更轻，适合只需要 NVR 核心功能的场景 |
+| tinyCam Monitor | 移动端监控 | App 体验好 | 面向服务器和 Web 中枢 |
+
+## WebUI 预览
+
+建议把截图放在 `docs/screenshots/`。图片还没提交前，下面这些占位保持注释状态，避免 README 出现破图；补图后取消对应的注释即可。
+
+<!--
+![Dashboard 总览](docs/screenshots/dashboard.png)
+-->
+
+| 截图 | 建议文件名 | 放在这里的理由 | 画面建议 |
+| --- | --- | --- | --- |
+| Dashboard 总览 | `docs/screenshots/dashboard.png` | 最适合作为第一张图，让用户一眼看懂这是监控中枢 | 截到左侧导航、多个视频宫格、录像状态点、录像按钮、添加流和全局录像设置按钮 |
+| Live Control + TTS | `docs/screenshots/live-control-tts.png` | 展示 go2nvr 相比普通 NVR 更有记忆点的“摄像头说话”能力 | 左侧选中一个实时视频，右侧展开 TTS Push，填入一句中文，显示 voice、target、IP Webcam/backchannel 设置 |
+| Recordings 回放 | `docs/screenshots/recordings.png` | 证明它不只是转发流，而是能管理历史录像 | 截到左侧 stream/date/file 列表、缩略图、右侧播放器、Download/Delete 按钮 |
+| Record Rule 弹窗 | `docs/screenshots/record-rule.png` | 解释运动触发、预录制、触发参数这些核心卖点 | 从 Dashboard 打开某个流的 Record Rule，显示 Pre-buffer、Trigger Detector、Interval、threshold、post_sec、min_hits |
+| Add Stream 弹窗 | `docs/screenshots/add-stream.png` | 可选截图，用来降低新用户接入门槛 | 显示 Stream Name、Source URL、ONVIF Discovery、Auto Discover/Test |
+| Configuration/System | `docs/screenshots/config-system.png` | 可选截图，放到后续文档或 Wiki 更合适 | 如果要放，建议拼成一张图：配置编辑器 + 系统日志/重启控制，证明 WebUI 能完成运维 |
+
+推荐 README 首屏只展示前 3 到 4 张：`dashboard.png`、`live-control-tts.png`、`recordings.png`、`record-rule.png`。`add-stream.png` 和 `config-system.png` 更适合放到详细文档里，避免首页太长。
+
+## 快速开始
+
+下载对应平台的二进制文件：
+
+- [Latest release](https://github.com/57Darling02/go2nvr/releases/latest)
+
+Linux / macOS / FreeBSD 以 `linux_amd64` 为例，实际使用时换成你的平台和架构对应文件名：
+
+```bash
+chmod +x ./go2nvr_linux_amd64
+./go2nvr_linux_amd64
+```
+
+Windows：
+
+```powershell
+.\go2nvr_win64.exe
+```
+
+启动后访问：
+
+```text
+http://设备IP:1984
+```
+
+第一次使用时，直接在 WebUI 中完成配置即可：
+
+- 添加摄像头视频流。
+- 查看实时预览。
+- 设置录像目录和保留天数。
+- 为指定视频流开启预录制和运动触发规则。
+- 浏览、播放、下载、删除历史录像。
+- 在 Live Control 中推送 TTS 语音。
+
+程序会默认读取当前目录下的 `go2nvr.yaml`。如果文件不存在，也可以先启动程序，再通过 WebUI 保存配置。
+
+也可以手动准备一个最小配置文件：
+
+```yaml
+streams:
+  camera1:
+    - rtsp://user:password@192.168.1.10:554/stream1
+
+api:
+  listen: ":1984"
+
+record:
+  dir: ./records
+  retention: 7
+  rules:
+    - src: camera1
+      prebuffer: 10
+      trigger_id: 1
+      trigger_interval: 500
+      trigger_params:
+        threshold: 14
+        post_sec: 10
+        min_hits: 1
+```
+
+指定配置文件启动：
+
+```bash
+./go2nvr -c go2nvr.yaml
+```
+
+开发者也可以从源码构建：
+
+```bash
+git clone https://github.com/57Darling02/go2nvr.git
+cd go2nvr
+go build -o go2nvr .
+```
+
+## 录像配置
+
+推荐直接在 WebUI 中配置录像目录、保留天数和每路视频流的录像规则。下面的 YAML 适合手写配置、迁移配置或自动化部署：
+
+```yaml
+record:
+  dir: ./records       # 录像保存目录
+  retention: 7         # 保留最近 7 天录像
+  rules:
+    - src: camera1     # 对应 streams 中的名称
+      prebuffer: 10    # 触发前保留 10 秒预录制缓冲
+      trigger_id: 1    # 1 表示 simple_diff 帧差检测
+      trigger_interval: 500
+      trigger_params:
+        threshold: 14
+        post_sec: 10
+        min_hits: 1
+```
+
+常用 API：
+
+```text
+GET    /api/record
+POST   /api/record?src=camera1&action=start
+POST   /api/record?src=camera1&action=stop
+GET    /api/record/rules
+GET    /api/record/triggers
+GET    /api/record/file?path=...
+DELETE /api/record/file?path=...
+```
+
+更多细节见 [`internal/record`](internal/record/README.md) 和 [`internal/record/trigger`](internal/record/trigger/README.md)。
+
+## TTS 语音推送
+
+go2nvr 可以把文字转成语音，并推送到摄像头的音频通道。当前支持：
+
+- `ipwebcam` / `wss`：适配 IP Webcam 的 WebSocket 音频接口。
+- `backchannel` / `stream`：通过 go2rtc 的双向音频能力推送到目标流。
+
+示例：
+
+```bash
+curl -X POST "http://127.0.0.1:1984/api/ttspush/push" \
+  --data-urlencode "text=请勿抽烟" \
+  --data-urlencode "target_type=ipwebcam" \
+  --data-urlencode "url=ws://192.168.1.20:8080/audioin.wav"
+```
+
+更多参数见 [`internal/ttspush`](internal/ttspush/README.md)。
+
+## 项目状态
+
+go2nvr 目前更像一个轻量 NVR 的实验场：核心链路已经可用，WebUI、录像管理、触发器和 TTS 仍会继续打磨。欢迎试用、提 issue，尤其欢迎轻量部署、边缘设备、NAS、小主机、多摄像头接入和录像管理场景的反馈。
+
+## 致谢
+
+go2nvr 基于 [AlexxIT/go2rtc](https://github.com/AlexxIT/go2rtc) 开发，继承了它优秀的流媒体协议能力。TTS 功能使用了 [edge-tts-go](https://github.com/difyz9/edge-tts-go) 相关能力。
+
+下面保留 go2rtc 原始文档，便于查询底层协议、编解码、输入输出和兼容能力。
 
 ## Installation
 
