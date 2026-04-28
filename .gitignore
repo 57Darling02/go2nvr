@@ -24,3 +24,7 @@ package-lock.json
 CLAUDE.md
 
 /records
+
+/www/**
+!/www/
+!/www/static.go
