@@ -34,7 +34,7 @@
       <div class="p-4">
         <div class="flex items-center justify-center md:justify-start text-gray-500 text-xs">
           <Info class="w-4 h-4 md:mr-2" />
-          <span class="hidden md:block">v0.1.6</span>
+          <span class="hidden md:block">{{ appVersion }}</span>
         </div>
       </div>
     </aside>
@@ -66,6 +66,7 @@ type NavItem = {
 }
 
 const route = useRoute()
+const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
 
 const navItems: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid },

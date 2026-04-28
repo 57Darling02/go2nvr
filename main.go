@@ -55,7 +55,13 @@ import (
 
 func main() {
 	// version will be set later from -buildvcs info, this used only as fallback
-	app.Version = "1.9.14"
+	if app.Version == "" {
+		if app.VersionOverride != "" {
+			app.Version = app.VersionOverride
+		} else {
+			app.Version = "1.9.14"
+		}
+	}
 
 	type module struct {
 		name string

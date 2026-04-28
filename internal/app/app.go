@@ -10,11 +10,12 @@ import (
 )
 
 var (
-	Version    string
-	Modules    []string
-	UserAgent  string
-	ConfigPath string
-	Info       = make(map[string]any)
+	Version         string
+	VersionOverride string
+	Modules         []string
+	UserAgent       string
+	ConfigPath      string
+	Info            = make(map[string]any)
 )
 
 const usage = `Usage of go2rtc:
@@ -111,7 +112,7 @@ func readRevisionTime() (revision, vcsTime string) {
 		// Check version from -buildvcs info
 		// Format for tagged version : v1.9.13
 		// Format for modified code:   v1.9.14-0.20251215184105-753d6617ab58+dirty
-		if info.Main.Version != "v"+Version {
+		if VersionOverride == "" && info.Main.Version != "v"+Version {
 			// Format: 1.9.13+dev.753d661[.dirty]
 			// Compatible with "awesomeversion" and "packaging.version" from python.
 			// Version will be larger than the previous release, but smaller than the next release.

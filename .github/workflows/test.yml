@@ -41,12 +41,23 @@ jobs:
           cache: pnpm
           cache-dependency-path: webui/pnpm-lock.yaml
 
+      - name: Resolve Version
+        shell: bash
+        run: |
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            version="$GITHUB_REF_NAME"
+          else
+            version="$(git describe --tags --dirty --always 2>/dev/null || git rev-parse --short HEAD)"
+          fi
+          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
+          echo "GO_LDFLAGS=-s -w -X github.com/AlexxIT/go2rtc/internal/app.VersionOverride=${version#v}" >> "$GITHUB_ENV"
+
       - name: Build Web UI
         shell: bash
         run: ./scripts/build-webui.sh
 
       - name: Build Go binary
-        run: go build -ldflags "-s -w" -trimpath -o ./go2nvr
+        run: go build -ldflags "$GO_LDFLAGS" -trimpath -o ./go2nvr
 
       - name: Test Go binary on linux
         if: matrix.os == 'ubuntu-latest'
