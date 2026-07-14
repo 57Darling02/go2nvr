@@ -96,7 +96,7 @@ jobs:
 
       - name: Build go2nvr_android_arm64
         env: { GOOS: android, GOARCH: arm64 }
-        run: go build -ldflags "$GO_LDFLAGS" -trimpath -o go2nvr_android_arm64
+        run: go build -ldflags "$GO_LDFLAGS  -checklinkname=0" -trimpath -o go2nvr_android_arm64
       - name: Upload go2nvr_android_arm64
         uses: actions/upload-artifact@v4
         with: { name: go2nvr_android_arm64, path: go2nvr_android_arm64 }
