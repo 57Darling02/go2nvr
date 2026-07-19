@@ -12,7 +12,10 @@ FROM --platform=$BUILDPLATFORM node:${NODE_VERSION} AS webui
 WORKDIR /build
 
 COPY webui/package.json webui/pnpm-lock.yaml webui/pnpm-workspace.yaml ./webui/
-RUN corepack enable && pnpm --dir webui install --frozen-lockfile
+RUN npm install --global corepack@0.33.0 \
+    && corepack enable \
+    && corepack install --global pnpm@10.33.0 \
+    && pnpm --dir webui install --frozen-lockfile
 
 COPY webui ./webui
 COPY scripts/build-webui.sh ./scripts/build-webui.sh

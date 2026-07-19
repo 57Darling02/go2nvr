@@ -60,7 +60,7 @@ func main() {
 		if app.VersionOverride != "" {
 			app.Version = app.VersionOverride
 		} else {
-			app.Version = "0.3.0"
+			app.Version = "0.3.1"
 		}
 	}
 

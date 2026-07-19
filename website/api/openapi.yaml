@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: go2nvr
-  version: 0.3.0
+  version: 0.3.1
   license: { name: MIT,url: https://opensource.org/licenses/MIT }
   contact: { url: https://github.com/AlexxIT/go2rtc }
   description: |
@@ -203,7 +203,7 @@ paths:
           content:
             application/jsonlines:
               example: |
-                {"level":"info","version":"0.3.0","platform":"linux/amd64","revision":"dfe4755","time":1766841087331,"message":"go2nvr"}
+                {"level":"info","version":"0.3.1","platform":"linux/amd64","revision":"dfe4755","time":1766841087331,"message":"go2nvr"}
     delete:
       summary: Clear in-memory logs buffer
       tags: [ Application ]
