@@ -10,7 +10,7 @@ import (
 )
 
 func TestNilCharacter(t *testing.T) {
-	var res SetupEndpoints
+	var res SetupEndpointsRequest
 	char := &hap.Character{}
 	err := char.ReadTLV8(&res)
 	require.NotNil(t, err)
@@ -18,11 +18,11 @@ func TestNilCharacter(t *testing.T) {
 }
 
 type testTLV8 struct {
-	name    string
-	value   string
-	actual  any
-	expect  any
-	noequal bool
+	name   string
+	value  string
+	actual any
+	expect any
+	exact  bool
 }
 
 func (test testTLV8) run(t *testing.T) {
@@ -45,7 +45,10 @@ func (test testTLV8) run(t *testing.T) {
 	t.Logf("%x\n", a)
 	t.Logf("%x\n", b)
 
-	if !test.noequal {
+	// HomeKit peers use both 0x00 and 0xFF as valid zero-length slice
+	// separators. The encoder emits canonical 0xFF, so compatibility fixtures
+	// normally verify the decoded structure rather than their original bytes.
+	if test.exact {
 		require.Equal(t, test.value, dst.Value)
 	}
 }

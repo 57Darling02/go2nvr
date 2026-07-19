@@ -1,6 +1,7 @@
 package ffmpeg
 
 import (
+	"context"
 	"net/url"
 	"testing"
 
@@ -20,4 +21,12 @@ func TestParseQuery(t *testing.T) {
 	require.Nil(t, err)
 	args = parseQuery(query)
 	require.Equal(t, `ffmpeg -hide_banner -hwaccel vaapi -hwaccel_output_format vaapi -hwaccel_flags allow_profile_mismatch -i - -c:v mjpeg_vaapi -vf "format=vaapi|nv12,hwupload" -f mjpeg -`, args.String())
+}
+
+func TestJPEGWithScaleContextCanceled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := JPEGWithScaleContext(ctx, nil, 640, -1)
+	require.ErrorIs(t, err, context.Canceled)
 }

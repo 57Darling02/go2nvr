@@ -1,0 +1,10 @@
+@ECHO OFF
+SETLOCAL
+
+IF "%GO2NVR_SKIP_WEBUI%"=="1" GOTO build
+CALL "%~dp0build-webui.cmd"
+IF ERRORLEVEL 1 EXIT /B %ERRORLEVEL%
+
+:build
+go build %*
+EXIT /B %ERRORLEVEL%

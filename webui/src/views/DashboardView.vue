@@ -193,6 +193,7 @@ import {
   type StreamRuntimeStateMap,
 } from '@/lib/recording-state'
 import * as api from '@/services/api'
+import { apiURL } from '@/lib/base-url'
 
 const streams = ref<string[]>([])
 const loading = ref(false)
@@ -370,7 +371,7 @@ async function checkConnection() {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 2000)
 
-    await fetch('/api', { signal: controller.signal })
+    await fetch(apiURL(), { signal: controller.signal })
     clearTimeout(timeoutId)
 
     // Online

@@ -2,82 +2,87 @@ package record
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/AlexxIT/go2rtc/internal/ffmpeg"
-	"github.com/AlexxIT/go2rtc/internal/streams"
 	"github.com/AlexxIT/go2rtc/pkg/aac"
 	"github.com/AlexxIT/go2rtc/pkg/core"
 	"github.com/AlexxIT/go2rtc/pkg/h264"
-	"github.com/AlexxIT/go2rtc/pkg/h264/annexb"
 	"github.com/AlexxIT/go2rtc/pkg/h265"
-	"github.com/AlexxIT/go2rtc/pkg/magic"
 	"github.com/AlexxIT/go2rtc/pkg/mjpeg"
 	"github.com/AlexxIT/go2rtc/pkg/mp4"
 	"github.com/AlexxIT/go2rtc/pkg/pcm"
 	"github.com/pion/rtp"
 )
 
+const maxKeyframeBytes = 2 * 1024 * 1024
+
+var errRecorderBackpressure = errors.New("backpressure")
+
 type Recorder struct {
 	core.Connection
+
 	src string
 
-	prebuffer time.Duration
+	mailbox *recordMailbox
+	done    chan struct{}
+	stop    sync.Once
+	stopErr error
 
-	muxer     *mp4.Muxer
-	file      *os.File
-	writer    *bufio.Writer
-	fileName  string
-	buffer    []*packetData
-	keyframes []int
-	mu        sync.Mutex
+	prebufferNanos atomic.Int64
+	snapshotNeeded atomic.Bool
+	snapshotActive atomic.Bool
+	accepting      atomic.Bool
+
+	stateMu   sync.RWMutex
+	recording bool
+	fileName  string // constrained logical storage path
 	startTime time.Time
 
-	recording  bool
-	videoTrack byte
-	videoCodec string
-	startTS    map[byte]uint32
-	hasThumb   bool
-	lastKeyAt  time.Time
-	lastKey    []byte
-	keyCollect bool
-	keyBuf     []byte
+	snapshotMu      sync.RWMutex
+	lastKey         []byte
+	lastKeyAt       time.Time
+	snapshotCtx     context.Context
+	snapshotCancel  context.CancelFunc
+	failureMu       sync.RWMutex
+	onFailure       func(*Recorder, error)
+	failureNotified atomic.Bool
 
-	snapshotCh   chan snapshotTask
-	snapshotStop chan struct{}
-	snapshotDone chan struct{}
-	snapshotOnce sync.Once
-}
-
-type packetData struct {
-	trackID byte
-	packet  *rtp.Packet
-	at      time.Time
-}
-
-type snapshotTask struct {
-	codec   string
-	payload []byte
-	at      time.Time
+	// Everything below is owned exclusively by writerLoop after attachment.
+	muxer            *mp4.Muxer
+	file             *os.File
+	writer           *bufio.Writer
+	physicalName     string
+	videoCodec       string
+	startTS          map[byte]uint32
+	prebufferPackets []*packetData
+	prebufferBytes   int64
+	prebufferStarted bool
+	keyCollect       bool
+	keyBuf           []byte
+	keyBufBytes      int64
+	thumbnailPending bool
 }
 
 func newRecorder(src string, prebuffer time.Duration) *Recorder {
+	limits := currentLimits()
+	snapshotCtx, snapshotCancel := context.WithCancel(context.Background())
 	r := &Recorder{
-		src:          src,
-		prebuffer:    prebuffer,
-		muxer:        &mp4.Muxer{},
-		startTS:      make(map[byte]uint32),
-		snapshotCh:   make(chan snapshotTask, 2),
-		snapshotStop: make(chan struct{}),
-		snapshotDone: make(chan struct{}),
+		src:            src,
+		mailbox:        newRecordMailbox(limits.writerQueueBytes()),
+		done:           make(chan struct{}),
+		muxer:          &mp4.Muxer{},
+		startTS:        make(map[byte]uint32),
+		snapshotCtx:    snapshotCtx,
+		snapshotCancel: snapshotCancel,
 	}
-
+	r.SetPrebuffer(prebuffer)
 	r.Connection = core.Connection{
 		ID:         core.NewID(),
 		FormatName: "record",
@@ -85,39 +90,49 @@ func newRecorder(src string, prebuffer time.Duration) *Recorder {
 		Medias: []*core.Media{
 			{
 				Kind: core.KindVideo, Direction: core.DirectionSendonly,
-				Codecs: []*core.Codec{{Name: core.CodecH264}, {Name: core.CodecH265}},
+				Codecs: []*core.Codec{{Name: core.CodecH264}, {Name: core.CodecH265}, {Name: core.CodecJPEG}},
 			},
 			{
 				Kind: core.KindAudio, Direction: core.DirectionSendonly,
 				Codecs: []*core.Codec{
 					{Name: core.CodecAAC}, {Name: core.CodecOpus}, {Name: core.CodecMP3},
-					{Name: core.CodecPCMA}, {Name: core.CodecPCMU}, {Name: core.CodecPCM},
-					{Name: core.CodecPCML},
+					{Name: core.CodecPCMA}, {Name: core.CodecPCMU}, {Name: core.CodecPCM}, {Name: core.CodecPCML},
 				},
 			},
 		},
 	}
-	go r.runSnapshotWorker()
+	go r.writerLoop()
 	return r
 }
 
 func (r *Recorder) SetPrebuffer(prebuffer time.Duration) {
-	r.mu.Lock()
-	r.prebuffer = prebuffer
-	r.mu.Unlock()
+	if prebuffer < 0 {
+		prebuffer = 0
+	}
+	r.prebufferNanos.Store(int64(prebuffer))
+}
+
+func (r *Recorder) SetSnapshotRequired(required bool) {
+	r.snapshotNeeded.Store(required)
+}
+
+func (r *Recorder) SetFailureHandler(handler func(*Recorder, error)) {
+	r.failureMu.Lock()
+	r.onFailure = handler
+	r.failureMu.Unlock()
 }
 
 func (r *Recorder) AddTrack(media *core.Media, _ *core.Codec, track *core.Receiver) error {
 	trackID := byte(len(r.Senders))
 	codec := track.Codec.Clone()
 	handler := core.NewSender(media, codec)
+	videoCodec := ""
 
 	switch track.Codec.Name {
 	case core.CodecH264:
-		r.videoTrack = trackID
-		r.videoCodec = core.CodecH264
+		videoCodec = core.CodecH264
 		handler.Handler = func(packet *rtp.Packet) {
-			r.writeRTP(trackID, packet, h264.IsKeyframe(packet.Payload))
+			r.writeRTP(trackID, true, h264.IsKeyframe(packet.Payload), packet)
 		}
 		if track.Codec.IsRTP() {
 			handler.Handler = h264.RTPDepay(track.Codec, handler.Handler)
@@ -125,10 +140,9 @@ func (r *Recorder) AddTrack(media *core.Media, _ *core.Codec, track *core.Receiv
 			handler.Handler = h264.RepairAVCC(track.Codec, handler.Handler)
 		}
 	case core.CodecH265:
-		r.videoTrack = trackID
-		r.videoCodec = core.CodecH265
+		videoCodec = core.CodecH265
 		handler.Handler = func(packet *rtp.Packet) {
-			r.writeRTP(trackID, packet, h265.IsKeyframe(packet.Payload))
+			r.writeRTP(trackID, true, h265.IsKeyframe(packet.Payload), packet)
 		}
 		if track.Codec.IsRTP() {
 			handler.Handler = h265.RTPDepay(track.Codec, handler.Handler)
@@ -136,8 +150,7 @@ func (r *Recorder) AddTrack(media *core.Media, _ *core.Codec, track *core.Receiv
 			handler.Handler = h265.RepairAVCC(track.Codec, handler.Handler)
 		}
 	case core.CodecJPEG:
-		r.videoTrack = trackID
-		r.videoCodec = core.CodecJPEG
+		videoCodec = core.CodecJPEG
 		var lastTime time.Time
 		handler.Handler = func(packet *rtp.Packet) {
 			now := time.Now()
@@ -145,13 +158,13 @@ func (r *Recorder) AddTrack(media *core.Media, _ *core.Codec, track *core.Receiv
 				return
 			}
 			lastTime = now
-			r.writeRTP(trackID, packet, true)
+			r.writeRTP(trackID, true, true, packet)
 		}
 		if track.Codec.IsRTP() {
 			handler.Handler = mjpeg.RTPDepay(handler.Handler)
 		}
 	case core.CodecAAC, core.CodecOpus, core.CodecMP3:
-		handler.Handler = func(packet *rtp.Packet) { r.writeRTP(trackID, packet, false) }
+		handler.Handler = func(packet *rtp.Packet) { r.writeRTP(trackID, false, false, packet) }
 		if track.Codec.Name == core.CodecAAC && track.Codec.IsRTP() {
 			handler.Handler = aac.RTPDepay(handler.Handler)
 		}
@@ -162,62 +175,118 @@ func (r *Recorder) AddTrack(media *core.Media, _ *core.Codec, track *core.Receiv
 			codec.ClockRate *= 2
 		}
 		handler.Handler = pcm.FLACEncoder(track.Codec.Name, codec.ClockRate, func(packet *rtp.Packet) {
-			r.writeRTP(trackID, packet, false)
+			r.writeRTP(trackID, false, false, packet)
 		})
 	default:
 		return errors.New("unsupported codec: " + track.Codec.Name)
 	}
 
-	r.muxer.AddTrack(codec)
+	if err := r.addTrack(codec, videoCodec); err != nil {
+		return err
+	}
 	handler.HandleRTP(track)
 	r.Senders = append(r.Senders, handler)
 	return nil
 }
 
-func (r *Recorder) writeRTP(trackID byte, packet *rtp.Packet, isKeyframe bool) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *Recorder) addTrack(codec *core.Codec, videoCodec string) error {
+	reply := make(chan error, 1)
+	if !r.mailbox.pushControl(recordEvent{
+		kind:       recordAddTrack,
+		codec:      codec,
+		videoCodec: videoCodec,
+		reply:      reply,
+	}) {
+		return errors.New("recorder is stopped")
+	}
+	return <-reply
+}
 
-	now := time.Now()
-	if trackID == r.videoTrack {
-		if isKeyframe {
-			r.keyCollect = true
-			r.keyBuf = r.keyBuf[:0]
+func (r *Recorder) writeRTP(trackID byte, video, keyframe bool, packet *rtp.Packet) {
+	recording := r.isRecording()
+	if !recording {
+		if r.prebufferNanos.Load() <= 0 && (!video || !r.snapshotNeeded.Load()) {
+			return
 		}
-		if r.keyCollect {
-			const maxKeyBytes = 2 * 1024 * 1024
-			if len(r.keyBuf)+len(packet.Payload) <= maxKeyBytes {
-				r.keyBuf = append(r.keyBuf, packet.Payload...)
+		if r.prebufferNanos.Load() <= 0 && r.snapshotNeeded.Load() {
+			if keyframe {
+				r.snapshotActive.Store(true)
+			}
+			if !r.snapshotActive.Load() {
+				return
 			}
 			if packet.Marker {
-				if len(r.keyBuf) > 0 {
-					payload := append([]byte(nil), r.keyBuf...)
-					r.enqueueSnapshotLocked(r.videoCodec, payload, now)
-				}
-				r.keyCollect = false
+				r.snapshotActive.Store(false)
 			}
 		}
-	}
-
-	if r.recording {
-		if len(r.buffer) > 0 {
-			r.flushBufferToFileLocked()
-		}
-		r.writeToFile(trackID, packet)
+	} else if !r.accepting.Load() {
 		return
 	}
 
-	clone := packet.Clone()
-	r.buffer = append(r.buffer, &packetData{trackID: trackID, packet: clone, at: now})
-	if isKeyframe {
-		r.keyframes = append(r.keyframes, len(r.buffer)-1)
+	size := packetSize(packet)
+	if !recordMemory.reserve(size) {
+		if recording {
+			r.signalBackpressure()
+		}
+		return
 	}
-	r.pruneBuffer(now)
+
+	// The clone happens at the ingress boundary. From this point the writer is
+	// the only owner of the RTP packet and may normalize its AVCC payload.
+	clone := packet.Clone()
+	event := recordEvent{kind: recordPacket, packet: &packetData{
+		trackID:  trackID,
+		video:    video,
+		keyframe: keyframe,
+		packet:   clone,
+		at:       time.Now(),
+		size:     size,
+	}}
+	if !r.mailbox.pushPacket(event) {
+		recordMemory.release(size)
+		if recording {
+			r.signalBackpressure()
+		}
+	}
+}
+
+func packetSize(packet *rtp.Packet) int64 {
+	// rtp.Packet.Clone copies the header and payload. Account a small fixed
+	// header allowance so the byte budget remains conservative.
+	return int64(len(packet.Payload) + 64)
+}
+
+func (r *Recorder) StartRecording() error {
+	return r.request(recordStart, "")
+}
+
+func (r *Recorder) StopRecording() error {
+	return r.request(recordStop, "manual")
+}
+
+func (r *Recorder) request(kind recordEventKind, reason string) error {
+	reply := make(chan error, 1)
+	if !r.mailbox.pushControl(recordEvent{kind: kind, reason: reason, reply: reply}) {
+		return errors.New("recorder is stopped")
+	}
+	return <-reply
+}
+
+func (r *Recorder) State() (bool, string, time.Time) {
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
+	return r.recording, r.fileName, r.startTime
+}
+
+func (r *Recorder) isRecording() bool {
+	r.stateMu.RLock()
+	defer r.stateMu.RUnlock()
+	return r.recording
 }
 
 func (r *Recorder) LastKeyframe() ([]byte, time.Time, bool) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.snapshotMu.RLock()
+	defer r.snapshotMu.RUnlock()
 	if len(r.lastKey) == 0 {
 		return nil, time.Time{}, false
 	}
@@ -226,288 +295,449 @@ func (r *Recorder) LastKeyframe() ([]byte, time.Time, bool) {
 	return b, r.lastKeyAt, true
 }
 
-func (r *Recorder) StartRecording() {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+func (r *Recorder) snapshotContext() context.Context {
+	return r.snapshotCtx
+}
 
-	if r.recording {
-		return
-	}
-
-	now := time.Now()
-	r.pruneBuffer(now)
-	r.openFile(now)
-	if r.recording && len(r.buffer) > 0 {
-		r.flushBufferToFileLocked()
+func (r *Recorder) signalBackpressure() {
+	if r.accepting.CompareAndSwap(true, false) {
+		r.mailbox.signalOverflow()
 	}
 }
 
-func (r *Recorder) StopRecording() {
-	r.mu.Lock()
-	r.closeFile()
-	r.mu.Unlock()
-}
+func (r *Recorder) writerLoop() {
+	defer close(r.done)
+	defer r.mailbox.close()
 
-func (r *Recorder) State() (bool, string, time.Time) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.recording, r.fileName, r.startTime
-}
-
-func (r *Recorder) pruneBuffer(now time.Time) {
-	if len(r.buffer) == 0 {
-		return
-	}
-	if r.prebuffer <= 0 {
-		r.buffer = nil
-		r.keyframes = nil
-		return
-	}
-
-	cut := now.Add(-r.prebuffer)
-	keepIdx := 0
-	limitIdx := len(r.buffer)
-	if len(r.keyframes) > 0 {
-		limitIdx = r.keyframes[len(r.keyframes)-1]
-	}
-
-	for keepIdx < len(r.buffer) && keepIdx < limitIdx && r.buffer[keepIdx].at.Before(cut) {
-		keepIdx++
-	}
-
-	if keepIdx > 0 {
-		r.buffer = r.buffer[keepIdx:]
-		var newKeys []int
-		for _, k := range r.keyframes {
-			if k >= keepIdx {
-				newKeys = append(newKeys, k-keepIdx)
-			}
+	for {
+		event, ok := r.mailbox.next()
+		if !ok {
+			return
 		}
-		r.keyframes = newKeys
+		switch event.kind {
+		case recordPacket:
+			r.handlePacket(event.packet)
+		case recordAddTrack:
+			r.muxer.AddTrack(event.codec)
+			if event.videoCodec != "" {
+				r.videoCodec = event.videoCodec
+			}
+			event.reply <- nil
+		case recordStart:
+			err := r.openSegment(time.Now())
+			if err == nil {
+				err = r.flushPrebuffer()
+			}
+			if err != nil {
+				_ = r.closeSegment()
+			} else {
+				r.accepting.Store(true)
+			}
+			event.reply <- err
+		case recordStop:
+			err := r.closeSegment()
+			event.reply <- err
+		case recordOverflow:
+			if r.isRecording() {
+				_ = r.closeSegment()
+				r.notifyFailure(errRecorderBackpressure)
+			}
+		case recordClose:
+			err := r.closeSegment()
+			r.clearPrebuffer()
+			r.clearKeyBuffer()
+			if event.reply != nil {
+				event.reply <- err
+			}
+			return
+		}
 	}
 }
 
-func (r *Recorder) flushBufferToFileLocked() {
-	startIdx := 0
-	if len(r.keyframes) > 0 {
-		startIdx = r.keyframes[0]
+func (r *Recorder) handlePacket(data *packetData) {
+	if r.shouldCaptureSnapshot(data) {
+		r.collectKeyframe(data)
 	}
-	for _, item := range r.buffer[startIdx:] {
-		r.writeToFile(item.trackID, item.packet)
+	if r.isRecording() {
+		if err := r.writePacket(data); err != nil {
+			recordMemory.release(data.size)
+			_ = r.closeSegment()
+			r.notifyFailure(err)
+			return
+		}
+		recordMemory.release(data.size)
+		return
 	}
-	r.buffer = nil
-	r.keyframes = nil
+	r.appendPrebuffer(data)
 }
 
-func (r *Recorder) openFile(now time.Time) {
-	baseDir, _ := getDirAndRetention()
-	dir := filepath.Join(baseDir, r.src, now.Format("2006-01-02"))
-	_ = os.MkdirAll(dir, 0755)
+func (r *Recorder) shouldCaptureSnapshot(data *packetData) bool {
+	if !data.video {
+		return false
+	}
+	if r.snapshotNeeded.Load() {
+		return true
+	}
+	return r.isRecording() && !r.thumbnailPending
+}
 
+func (r *Recorder) collectKeyframe(data *packetData) {
+	if data.keyframe {
+		r.clearKeyBuffer()
+		r.keyCollect = true
+	}
+	if !r.keyCollect {
+		return
+	}
+	if len(r.keyBuf)+len(data.packet.Payload) > maxKeyframeBytes || !recordMemory.reserve(int64(len(data.packet.Payload))) {
+		r.clearKeyBuffer()
+		return
+	}
+	r.keyBuf = append(r.keyBuf, data.packet.Payload...)
+	r.keyBufBytes += int64(len(data.packet.Payload))
+	if !data.packet.Marker {
+		return
+	}
+
+	thumbnail := ""
+	if r.isRecording() && !r.thumbnailPending {
+		thumbnail = r.physicalName
+		r.thumbnailPending = true
+	}
+	task := snapshotTask{
+		codec:     r.videoCodec,
+		payload:   r.keyBuf,
+		at:        data.at,
+		bytes:     r.keyBufBytes,
+		thumbnail: thumbnail,
+	}
+	r.keyBuf = nil
+	r.keyBufBytes = 0
+	r.keyCollect = false
+	snapshots.submit(r, task)
+}
+
+func (r *Recorder) clearKeyBuffer() {
+	recordMemory.release(r.keyBufBytes)
+	r.keyBuf = nil
+	r.keyBufBytes = 0
+	r.keyCollect = false
+}
+
+func (r *Recorder) appendPrebuffer(data *packetData) {
+	prebuffer := time.Duration(r.prebufferNanos.Load())
+	if prebuffer <= 0 {
+		recordMemory.release(data.size)
+		return
+	}
+	if !r.prebufferStarted {
+		if !data.video || !data.keyframe {
+			recordMemory.release(data.size)
+			return
+		}
+		r.prebufferStarted = true
+	}
+	r.prebufferPackets = append(r.prebufferPackets, data)
+	r.prebufferBytes += data.size
+	r.prunePrebuffer(data.at, prebuffer)
+}
+
+func (r *Recorder) prunePrebuffer(now time.Time, duration time.Duration) {
+	limits := currentLimits()
+	cutoff := now.Add(-duration)
+	if len(r.prebufferPackets) == 0 {
+		return
+	}
+	if !r.prebufferPackets[0].at.Before(cutoff) && r.prebufferBytes <= limits.prebufferBytes() {
+		return
+	}
+
+	// Retain only a segment that begins at a recent keyframe and fits the
+	// byte cap. If no such keyframe exists, retaining an undecodable history is
+	// worse than waiting for the next IDR.
+	remaining := r.prebufferBytes
+	keep := -1
+	for i, item := range r.prebufferPackets {
+		if item.video && item.keyframe && !item.at.Before(cutoff) && remaining <= limits.prebufferBytes() {
+			keep = i
+			break
+		}
+		remaining -= item.size
+	}
+	if keep < 0 {
+		r.clearPrebuffer()
+		return
+	}
+	for _, item := range r.prebufferPackets[:keep] {
+		recordMemory.release(item.size)
+	}
+	r.prebufferPackets = r.prebufferPackets[keep:]
+	r.prebufferBytes = remaining
+}
+
+func (r *Recorder) clearPrebuffer() {
+	for _, item := range r.prebufferPackets {
+		recordMemory.release(item.size)
+	}
+	r.prebufferPackets = nil
+	r.prebufferBytes = 0
+	r.prebufferStarted = false
+}
+
+func (r *Recorder) flushPrebuffer() error {
+	for i, item := range r.prebufferPackets {
+		if err := r.writePacket(item); err != nil {
+			recordMemory.release(item.size)
+			for _, remaining := range r.prebufferPackets[i+1:] {
+				recordMemory.release(remaining.size)
+			}
+			r.prebufferPackets = nil
+			r.prebufferBytes = 0
+			r.prebufferStarted = false
+			return err
+		}
+		recordMemory.release(item.size)
+	}
+	r.prebufferPackets = nil
+	r.prebufferBytes = 0
+	r.prebufferStarted = false
+	return nil
+}
+
+func (r *Recorder) openSegment(now time.Time) error {
+	if r.isRecording() {
+		return nil
+	}
+	base, _ := getDirAndRetention()
 	ext := ".mp4"
 	if r.videoCodec == core.CodecJPEG {
 		ext = ".mjpeg"
 	}
-	filename := filepath.Join(dir, now.Format("15-04-05")+ext)
-	f, err := os.Create(filename)
+	file, physical, logical, err := createSegment(base, r.src, now, ext)
 	if err != nil {
-		log.Error().Err(err).Str("src", r.src).Msg("[record] create file failed")
-		r.recording = false
-		return
+		return fmt.Errorf("create recording segment: %w", err)
 	}
 
-	r.file = f
-	r.writer = bufio.NewWriterSize(f, 64*1024)
-	r.fileName = filename
-	r.startTime = now
-	r.recording = true
+	r.file = file
+	r.writer = bufio.NewWriterSize(file, 64*1024)
+	r.physicalName = physical
 	r.startTS = make(map[byte]uint32)
-	r.hasThumb = false
-
+	r.thumbnailPending = false
 	if r.videoCodec != core.CodecJPEG {
 		r.muxer.Reset()
-		initData, _ := r.muxer.GetInit()
-		_, _ = r.writer.Write(initData)
+		initData, err := r.muxer.GetInit()
+		if err != nil {
+			_ = file.Close()
+			r.file = nil
+			r.writer = nil
+			return err
+		}
+		if _, err = r.writer.Write(initData); err != nil {
+			_ = file.Close()
+			r.file = nil
+			r.writer = nil
+			return err
+		}
 	}
+	r.stateMu.Lock()
+	r.recording = true
+	r.fileName = logical
+	r.startTime = now
+	r.stateMu.Unlock()
+	return nil
 }
 
-func (r *Recorder) writeToFile(trackID byte, packet *rtp.Packet) {
+func (r *Recorder) writePacket(data *packetData) error {
 	if r.writer == nil {
-		return
+		return errors.New("recording writer is unavailable")
 	}
-
-	clone := *packet
-	if trackID == r.videoTrack {
-		payload := make([]byte, len(packet.Payload))
-		copy(payload, packet.Payload)
-		clone.Payload = payload
-
-		for i := 0; i+4 < len(clone.Payload); {
-			size := int(binary.BigEndian.Uint32(clone.Payload[i:]))
-			if i+4+size > len(clone.Payload) {
-				size = len(clone.Payload) - i - 4
-				binary.BigEndian.PutUint32(clone.Payload[i:], uint32(size))
+	packet := data.packet
+	if data.video {
+		for i := 0; i+4 < len(packet.Payload); {
+			size := int(binary.BigEndian.Uint32(packet.Payload[i:]))
+			if i+4+size > len(packet.Payload) {
+				size = len(packet.Payload) - i - 4
+				binary.BigEndian.PutUint32(packet.Payload[i:], uint32(size))
 			}
 			i += 4 + size
 		}
-		if !r.hasThumb {
-			r.hasThumb = true
-			go r.saveThumbnail()
-		}
 	}
-
 	if r.videoCodec == core.CodecJPEG {
-		if _, err := r.writer.Write(packet.Payload); err != nil {
-			log.Error().Err(err).Str("src", r.src).Msg("[record] write mjpeg error")
-			r.closeFile()
-		}
-		return
+		_, err := r.writer.Write(packet.Payload)
+		return err
 	}
-
-	if ts, ok := r.startTS[trackID]; !ok {
-		r.startTS[trackID] = clone.Timestamp
-		clone.Timestamp = 0
+	if ts, ok := r.startTS[data.trackID]; !ok {
+		r.startTS[data.trackID] = packet.Timestamp
+		packet.Timestamp = 0
 	} else {
-		clone.Timestamp -= ts
+		packet.Timestamp -= ts
 	}
-
-	b := r.muxer.GetPayload(trackID, &clone)
-	if _, err := r.writer.Write(b); err != nil {
-		log.Error().Err(err).Str("src", r.src).Msg("[record] write error")
-		r.closeFile()
-	}
+	_, err := r.writer.Write(r.muxer.GetPayload(data.trackID, packet))
+	return err
 }
 
-func (r *Recorder) closeFile() {
+func (r *Recorder) closeSegment() error {
+	r.accepting.Store(false)
+	var err error
 	if r.writer != nil {
-		_ = r.writer.Flush()
+		err = r.writer.Flush()
 		r.writer = nil
 	}
 	if r.file != nil {
-		_ = r.file.Close()
+		if syncErr := r.file.Sync(); err == nil {
+			err = syncErr
+		}
+		if closeErr := r.file.Close(); err == nil {
+			err = closeErr
+		}
 		r.file = nil
 	}
+	r.stateMu.Lock()
 	r.recording = false
+	r.stateMu.Unlock()
+	return err
 }
 
-func (r *Recorder) saveThumbnail() {
-	filename := r.fileName
-	if b, _, ok := r.LastKeyframe(); ok && len(b) > 0 {
-		thumbName := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".thumb"
-		_ = os.WriteFile(thumbName, b, 0644)
+func (r *Recorder) notifyFailure(err error) {
+	if err == nil || !r.failureNotified.CompareAndSwap(false, true) {
 		return
 	}
-
-	stream := streams.Get(r.src)
-	if stream == nil {
-		return
+	r.failureMu.RLock()
+	handler := r.onFailure
+	r.failureMu.RUnlock()
+	if handler != nil {
+		go handler(r, err)
 	}
-
-	cons := magic.NewKeyframe()
-	if err := stream.AddConsumer(cons); err != nil {
-		log.Warn().Err(err).Str("src", r.src).Msg("[record] add keyframe consumer failed")
-		return
-	}
-
-	once := &core.OnceBuffer{}
-	_, _ = cons.WriteTo(once)
-	stream.RemoveConsumer(cons)
-
-	b := once.Buffer()
-	if len(b) == 0 {
-		return
-	}
-
-	var (
-		jpegData []byte
-		err      error
-	)
-
-	switch cons.CodecName() {
-	case core.CodecH264, core.CodecH265:
-		jpegData, err = ffmpeg.JPEGWithScale(b, 640, -1)
-	case core.CodecJPEG:
-		jpegData = mjpeg.FixJPEG(b)
-	default:
-		return
-	}
-
-	if err != nil {
-		log.Warn().Err(err).Str("src", r.src).Msg("[record] save thumbnail failed")
-		return
-	}
-
-	thumbName := strings.TrimSuffix(filename, filepath.Ext(filename)) + ".thumb"
-	_ = os.WriteFile(thumbName, jpegData, 0644)
 }
 
 func (r *Recorder) Stop() error {
-	r.StopRecording()
-	r.stopSnapshotWorker()
-	return r.Connection.Stop()
-}
-
-func (r *Recorder) enqueueSnapshotLocked(codec string, payload []byte, at time.Time) {
-	task := snapshotTask{
-		codec:   codec,
-		payload: payload,
-		at:      at,
-	}
-
-	select {
-	case r.snapshotCh <- task:
-	default:
-		// Keep only the freshest snapshot task to bound latency and memory.
-		select {
-		case <-r.snapshotCh:
-		default:
+	r.stop.Do(func() {
+		// Stop accepting before placing the close marker. The mailbox also gates
+		// packet ingress with that marker, so packets accepted before it drain in
+		// order and packets racing after it release their reservation immediately.
+		r.accepting.Store(false)
+		r.snapshotCancel()
+		snapshots.cancel(r)
+		reply := make(chan error, 1)
+		if r.mailbox.pushControl(recordEvent{kind: recordClose, reply: reply}) {
+			r.stopErr = <-reply
 		}
-		select {
-		case r.snapshotCh <- task:
-		default:
+		<-r.done
+		if err := r.Connection.Stop(); r.stopErr == nil {
+			r.stopErr = err
 		}
-	}
-}
-
-func (r *Recorder) runSnapshotWorker() {
-	defer close(r.snapshotDone)
-
-	for {
-		select {
-		case <-r.snapshotStop:
-			return
-		case task := <-r.snapshotCh:
-			jpegData := r.snapshotToJPEG(task.codec, task.payload)
-			if len(jpegData) == 0 {
-				continue
-			}
-			r.mu.Lock()
-			r.lastKey = jpegData
-			r.lastKeyAt = task.at
-			r.mu.Unlock()
-		}
-	}
-}
-
-func (r *Recorder) snapshotToJPEG(codec string, payload []byte) []byte {
-	switch codec {
-	case core.CodecH264, core.CodecH265:
-		jpegData, err := ffmpeg.JPEGWithScale(annexb.DecodeAVCC(payload, true), 640, -1)
-		if err != nil {
-			log.Debug().Err(err).Str("src", r.src).Msg("[record] keyframe jpeg transcode failed")
-			return nil
-		}
-		return jpegData
-	case core.CodecJPEG:
-		return mjpeg.FixJPEG(payload)
-	default:
-		return nil
-	}
-}
-
-func (r *Recorder) stopSnapshotWorker() {
-	r.snapshotOnce.Do(func() {
-		close(r.snapshotStop)
-		<-r.snapshotDone
 	})
+	return r.stopErr
+}
+
+type packetData struct {
+	trackID  byte
+	video    bool
+	keyframe bool
+	packet   *rtp.Packet
+	at       time.Time
+	size     int64
+}
+
+type recordEventKind uint8
+
+const (
+	recordPacket recordEventKind = iota
+	recordAddTrack
+	recordStart
+	recordStop
+	recordOverflow
+	recordClose
+)
+
+type recordEvent struct {
+	kind       recordEventKind
+	packet     *packetData
+	codec      *core.Codec
+	videoCodec string
+	reason     string
+	reply      chan error
+}
+
+// recordMailbox is a byte-bounded FIFO. Packet producers never wait for disk
+// I/O; control events share the same order so a start flushes exactly the
+// packets received before it.
+type recordMailbox struct {
+	mu       sync.Mutex
+	cond     *sync.Cond
+	events   []recordEvent
+	bytes    int64
+	maxBytes int64
+	overflow bool
+	closing  bool
+	closed   bool
+}
+
+func newRecordMailbox(maxBytes int64) *recordMailbox {
+	m := &recordMailbox{maxBytes: maxBytes}
+	m.cond = sync.NewCond(&m.mu)
+	return m
+}
+
+func (m *recordMailbox) pushPacket(event recordEvent) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed || m.closing || event.packet == nil || event.packet.size > m.maxBytes-m.bytes {
+		return false
+	}
+	m.events = append(m.events, event)
+	m.bytes += event.packet.size
+	m.cond.Signal()
+	return true
+}
+
+func (m *recordMailbox) pushControl(event recordEvent) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.closed || m.closing {
+		return false
+	}
+	if event.kind == recordClose {
+		m.closing = true
+	}
+	m.events = append(m.events, event)
+	m.cond.Signal()
+	return true
+}
+
+func (m *recordMailbox) signalOverflow() {
+	m.mu.Lock()
+	if !m.closed && !m.closing {
+		m.overflow = true
+		m.cond.Signal()
+	}
+	m.mu.Unlock()
+}
+
+func (m *recordMailbox) next() (recordEvent, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for len(m.events) == 0 && !m.overflow && !m.closed {
+		m.cond.Wait()
+	}
+	if len(m.events) > 0 {
+		event := m.events[0]
+		m.events = m.events[1:]
+		if event.packet != nil {
+			m.bytes -= event.packet.size
+		}
+		return event, true
+	}
+	if m.overflow {
+		m.overflow = false
+		return recordEvent{kind: recordOverflow}, true
+	}
+	return recordEvent{}, false
+}
+
+func (m *recordMailbox) close() {
+	m.mu.Lock()
+	m.closed = true
+	m.cond.Broadcast()
+	m.mu.Unlock()
 }

@@ -1,9 +1,9 @@
 package api
 
 import (
+	"bytes"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/AlexxIT/go2rtc/internal/app"
 	"gopkg.in/yaml.v3"
@@ -17,7 +17,7 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		data, err := os.ReadFile(app.ConfigPath)
+		data, err := app.ReadConfig()
 		if err != nil {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -33,69 +33,65 @@ func configHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.Method == "PATCH" {
-			// no need to validate after merge
-			data, err = mergeYAML(app.ConfigPath, data)
-			if err != nil {
+			if _, err = unmarshalYAMLMap(data); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			err = app.UpdateConfig(func(current []byte) ([]byte, error) {
+				return mergeYAML(current, data)
+			})
 		} else {
-			// validate config
-			if err = yaml.Unmarshal(data, map[string]any{}); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+			var config map[string]any
+			if err = yaml.Unmarshal(data, &config); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
+			err = app.ReplaceConfig(data)
 		}
 
-		if err = os.WriteFile(app.ConfigPath, data, 0644); err != nil {
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	}
 }
 
-func mergeYAML(file1 string, yaml2 []byte) ([]byte, error) {
-	// Read the contents of the first YAML file
-	data1, err := os.ReadFile(file1)
+func mergeYAML(current, patch []byte) ([]byte, error) {
+	config1, err := unmarshalYAMLMap(current)
 	if err != nil {
 		return nil, err
 	}
-
-	// Unmarshal the first YAML file into a map
-	var config1 map[string]any
-	if err = yaml.Unmarshal(data1, &config1); err != nil {
+	config2, err := unmarshalYAMLMap(patch)
+	if err != nil {
 		return nil, err
 	}
+	return yaml.Marshal(merge(config1, config2))
+}
 
-	// Unmarshal the second YAML document into a map
-	var config2 map[string]any
-	if err = yaml.Unmarshal(yaml2, &config2); err != nil {
-		return nil, err
+func unmarshalYAMLMap(data []byte) (map[string]any, error) {
+	if len(bytes.TrimSpace(data)) == 0 {
+		return make(map[string]any), nil
 	}
 
-	// Merge the two maps
-	config1 = merge(config1, config2)
-
-	// Marshal the merged map into YAML
-	return yaml.Marshal(&config1)
+	var config map[string]any
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+	if config == nil {
+		config = make(map[string]any)
+	}
+	return config, nil
 }
 
 func merge(dst, src map[string]any) map[string]any {
 	for k, v := range src {
-		if vv, ok := dst[k]; ok {
-			switch vv := vv.(type) {
-			case map[string]any:
-				v := v.(map[string]any)
-				dst[k] = merge(vv, v)
-			case []any:
-				v := v.([]any)
-				dst[k] = v
-			default:
-				dst[k] = v
+		if current, ok := dst[k].(map[string]any); ok {
+			if update, ok := v.(map[string]any); ok {
+				dst[k] = merge(current, update)
+				continue
 			}
-		} else {
-			dst[k] = v
 		}
+		dst[k] = v
 	}
 	return dst
 }

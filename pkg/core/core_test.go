@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/AlexxIT/go2rtc/pkg/creds"
 	"github.com/stretchr/testify/require"
 )
 
@@ -125,7 +126,7 @@ func TestStripUserinfo(t *testing.T) {
     - ffmpeg:rtsp://username:password@10.1.2.3:554/stream1
     - ffmpeg:rtsp://10.1.2.3:554/stream1@#video=copy
 `
-	s = StripUserinfo(s)
+	s = creds.SecretString(s)
 	require.Equal(t, `streams:
   test:
     - ffmpeg:rtsp://***@10.1.2.3:554/stream1

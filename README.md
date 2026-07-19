@@ -112,6 +112,11 @@ api:
 record:
   dir: ./records
   retention: 7
+  limits:
+    memory_mb: 256
+    prebuffer_mb: 32
+    writer_queue_mb: 16
+    snapshot_workers: 1
   rules:
     - src: camera1
       prebuffer: 10
@@ -134,8 +139,12 @@ Build from source:
 ```bash
 git clone https://github.com/57Darling02/go2nvr.git
 cd go2nvr
-go build -o go2nvr .
+./scripts/build-go2nvr.sh -o go2nvr
 ```
+
+Source builds require Go 1.24+, Node.js 22+, and pnpm 10. The dashboard is generated during the build and is intentionally not committed to Git.
+
+To host go2nvr below a reverse-proxy prefix, set `api.base_path` (for example, `/nvr`). The dashboard derives its API, WebSocket, router, and asset URLs from that path.
 
 ## Recording
 
@@ -145,6 +154,11 @@ The Web UI is the recommended way to manage recording settings. For automated de
 record:
   dir: ./records
   retention: 7
+  limits:
+    memory_mb: 256
+    prebuffer_mb: 32
+    writer_queue_mb: 16
+    snapshot_workers: 1
   rules:
     - src: camera1
       prebuffer: 10
@@ -168,7 +182,7 @@ GET    /api/record/file?path=...
 DELETE /api/record/file?path=...
 ```
 
-See [`internal/record`](internal/record/README.md) and [`internal/record/trigger`](internal/record/trigger/README.md) for more details.
+The advanced `limits` block is YAML-only; it is not exposed in the UI or record config API. New recordings are stored under `records/streams/<sha256(source)>/...`; existing pre-upgrade recordings are intentionally not migrated or listed. See [`internal/record`](internal/record/README.md) for the state fields, safe logical file paths, and retention behavior.
 
 ## TTS Push
 

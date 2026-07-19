@@ -26,6 +26,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref, watch, onBeforeUnmount } from 'vue'
+import { websocketURL } from '@/lib/base-url'
 
 const props = defineProps({
   src: {
@@ -94,7 +95,7 @@ function getStreamUrl(src: string) {
   if (!src) return ''
   if (src.includes('://') || src.startsWith('/')) return src
   // It's a stream name
-  const url = new URL('/api/ws', window.location.href)
+  const url = new URL(websocketURL('api/ws'))
   url.searchParams.set('src', src)
   return url.toString()
 }

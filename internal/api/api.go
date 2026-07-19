@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net"
 	"net/http"
 	"os"
@@ -19,6 +20,16 @@ import (
 )
 
 func Init() {
+	initWithStaticFS(nil)
+}
+
+// InitWithStaticFS initializes the API with an optional embedded UI. A configured
+// api.static_dir always takes precedence over this filesystem.
+func InitWithStaticFS(staticFS fs.FS) {
+	initWithStaticFS(staticFS)
+}
+
+func initWithStaticFS(staticFS fs.FS) {
 	var cfg struct {
 		Mod struct {
 			Listen     string `yaml:"listen"`
@@ -51,7 +62,7 @@ func Init() {
 	basePath = cfg.Mod.BasePath
 	log = app.GetLogger("api")
 
-	initStatic(cfg.Mod.StaticDir)
+	initStatic(cfg.Mod.StaticDir, staticFS)
 
 	HandleFunc("api", apiHandler)
 	HandleFunc("api/config", configHandler)

@@ -1,24 +1,17 @@
-name: Test Build and Run
+name: Test
 
 on:
-#  push:
-#    branches:
-#      - '*'
-#  pull_request:
-#  merge_group:
+  push:
+  pull_request:
+  merge_group:
   workflow_dispatch:
 
-jobs:
-  build-test:
-    strategy:
-      matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
-        arch: [amd64, arm64]
+permissions:
+  contents: read
 
-    runs-on: ${{ matrix.os }}
-    continue-on-error: true
-    env:
-      GOARCH: ${{ matrix.arch }}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,7 +19,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.25'
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -41,48 +34,62 @@ jobs:
           cache: pnpm
           cache-dependency-path: webui/pnpm-lock.yaml
 
-      - name: Resolve Version
+      - name: Test Go packages
+        run: go test ./...
+
+      - name: Race test recorder and streams
+        run: go test -race ./internal/record/... ./internal/streams/...
+
+      - name: Build from source
+        run: ./scripts/build-go2nvr.sh -trimpath -o ./go2nvr
+
+      - name: Smoke test static files under api.base_path
         shell: bash
         run: |
-          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
-            version="$GITHUB_REF_NAME"
-          else
-            version="$(git describe --tags --dirty --always 2>/dev/null || git rev-parse --short HEAD)"
-          fi
-          echo "APP_VERSION=$version" >> "$GITHUB_ENV"
-          echo "GO_LDFLAGS=-s -w -X github.com/AlexxIT/go2rtc/internal/app.VersionOverride=${version#v}" >> "$GITHUB_ENV"
+          set -euo pipefail
+          config="$RUNNER_TEMP/go2nvr.yaml"
+          log="$RUNNER_TEMP/go2nvr.log"
+          cat > "$config" <<'EOF'
+          api:
+            listen: "127.0.0.1:1985"
+            base_path: "/nvr"
+          EOF
 
-      - name: Build Web UI
-        shell: bash
-        run: ./scripts/build-webui.sh
+          ./go2nvr -config "$config" > "$log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true' EXIT
 
-      - name: Build Go binary
-        run: go build -ldflags "$GO_LDFLAGS" -trimpath -o ./go2nvr
-
-      - name: Test Go binary on linux
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-            if [ "${{ matrix.arch }}" = "amd64" ]; then
-              ./go2nvr -version
-            else
-              sudo apt-get update && sudo apt-get install -y qemu-user-static
-              sudo cp /usr/bin/qemu-aarch64-static .
-              sudo chown $USER:$USER ./qemu-aarch64-static
-              qemu-aarch64-static ./go2nvr -version
+          for _ in $(seq 1 20); do
+            if curl --fail --silent --show-error http://127.0.0.1:1985/nvr/ > "$RUNNER_TEMP/index.html"; then
+              break
             fi
-      - name: Test Go binary on macos
-        if: matrix.os == 'macos-latest'
-        run: |
-            if [ "${{ matrix.arch }}" = "amd64" ]; then
-              ./go2nvr -version
-            else
-              echo "ARM64 architecture is not yet supported on macOS"
-            fi
-      - name: Test Go binary on windows
-        if: matrix.os == 'windows-latest'
-        run: |
-            if ("${{ matrix.arch }}" -eq "amd64") {
-                .\go2nvr* -version
-            } else {
-                Write-Host "ARM64 architecture is not yet supported on Windows"
-            }
+            sleep 0.5
+          done
+          test -s "$RUNNER_TEMP/index.html" || { cat "$log"; exit 1; }
+
+          asset=$(grep -m 1 -oE '(src|href)="\./assets/[^"]+"' "$RUNNER_TEMP/index.html" | cut -d '"' -f 2)
+          test -n "$asset"
+          curl --fail --silent --show-error "http://127.0.0.1:1985/nvr/${asset#./}" > /dev/null
+
+          curl --fail --silent --show-error http://127.0.0.1:1985/nvr/favicon.ico > /dev/null
+          curl --fail --silent --show-error http://127.0.0.1:1985/nvr/api > /dev/null
+
+  docker:
+    name: Docker ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: default
+            file: docker/Dockerfile
+          - name: hardware
+            file: docker/hardware.Dockerfile
+          - name: rockchip
+            file: docker/rockchip.Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: DOCKER_BUILDKIT=1 docker build --file "${{ matrix.file }}" --tag "go2nvr:test-${{ matrix.name }}" .

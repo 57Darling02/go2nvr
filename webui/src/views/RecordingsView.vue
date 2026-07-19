@@ -35,7 +35,7 @@
         v-if="currentStream"
         class="px-3 sm:px-4 py-2 bg-gray-900/50 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-800 truncate"
       >
-        {{ currentStream }} {{ currentDate ? `/ ${currentDate}` : '' }}
+        {{ currentStream.name }} {{ currentDate ? `/ ${currentDate.name}` : '' }}
       </div>
 
       <div class="p-3 sm:p-4 pb-0" v-if="errorMessage">
@@ -52,14 +52,14 @@
           <div v-if="!currentStream">
             <button
               v-for="stream in streams"
-              :key="stream"
+              :key="stream.path"
               @click="selectStream(stream)"
               type="button"
               class="w-full px-3 sm:px-4 py-3 hover:bg-gray-900 text-left flex justify-between items-center group transition-colors border-b border-gray-900"
             >
               <div class="flex items-center min-w-0">
                 <Video class="w-4 h-4 text-gray-500 mr-3" />
-                <span class="text-gray-300 group-hover:text-white truncate">{{ stream }}</span>
+                <span class="text-gray-300 group-hover:text-white truncate">{{ stream.name }}</span>
               </div>
               <ChevronRight class="w-4 h-4 text-gray-600 group-hover:text-gray-400 shrink-0" />
             </button>
@@ -74,14 +74,14 @@
           <div v-else-if="!currentDate">
             <button
               v-for="date in dates"
-              :key="date"
+              :key="date.path"
               @click="selectDate(date)"
               type="button"
               class="w-full px-3 sm:px-4 py-3 hover:bg-gray-900 text-left flex justify-between items-center group transition-colors border-b border-gray-900"
             >
               <div class="flex items-center min-w-0">
                 <Calendar class="w-4 h-4 text-gray-500 mr-3" />
-                <span class="text-gray-300 group-hover:text-white truncate">{{ date }}</span>
+                <span class="text-gray-300 group-hover:text-white truncate">{{ date.name }}</span>
               </div>
               <ChevronRight class="w-4 h-4 text-gray-600 group-hover:text-gray-400 shrink-0" />
             </button>
@@ -96,12 +96,12 @@
           <div v-else>
             <button
               v-for="file in files"
-              :key="file.name"
+              :key="file.path"
               @click="playFile(file)"
               type="button"
               class="w-full px-3 sm:px-4 py-3 hover:bg-gray-900 text-left transition-colors border-l-2 border-b border-gray-900"
               :class="
-                currentFile?.name === file.name
+                currentFile?.path === file.path
                   ? 'bg-gray-900 border-l-blue-500 text-white'
                   : 'border-l-transparent text-gray-400'
               "
@@ -121,7 +121,7 @@
                     <FileVideo
                       v-else
                       class="w-5 h-5"
-                      :class="currentFile?.name === file.name ? 'text-blue-400' : 'text-gray-600'"
+                      :class="currentFile?.path === file.path ? 'text-blue-400' : 'text-gray-600'"
                     />
                   </div>
                   <span class="text-sm font-medium truncate">{{ file.name }}</span>
@@ -174,7 +174,7 @@
             >
               {{ currentFile.name }}
             </h2>
-            <p class="text-gray-500 text-xs truncate">{{ currentStream }} / {{ currentDate }}</p>
+            <p class="text-gray-500 text-xs truncate">{{ currentStream?.name }} / {{ currentDate?.name }}</p>
           </div>
           <div class="flex gap-2 sm:gap-3 shrink-0 flex-wrap">
             <Button
@@ -265,15 +265,15 @@ type RecordingFileItem = api.Recording & {
 
 const route = useRoute()
 
-const streams = ref<string[]>([])
-const dates = ref<string[]>([])
+const streams = ref<api.Recording[]>([])
+const dates = ref<api.Recording[]>([])
 const files = ref<RecordingFileItem[]>([])
 
 const loading = ref(false)
 const errorMessage = ref('')
 
-const currentStream = ref('')
-const currentDate = ref('')
+const currentStream = ref<api.Recording | null>(null)
+const currentDate = ref<api.Recording | null>(null)
 const currentFile = ref<RecordingFileItem | null>(null)
 const pendingDeleteFile = ref<RecordingFileItem | null>(null)
 const deleteDialogOpen = ref(false)
@@ -288,16 +288,17 @@ function formatSize(bytes?: number) {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
 }
 
-async function loadStreams() {
+async function loadStreams(selectSrc?: string) {
   loading.value = true
   errorMessage.value = ''
   try {
     const res = await api.getRecordings('.')
     if (Array.isArray(res)) {
-      streams.value = res
-        .filter((f: any) => !f.is_file)
-        .map((f: any) => f.name)
-        .sort()
+      streams.value = res.filter((item) => !item.is_file).sort((a, b) => a.name.localeCompare(b.name))
+      if (selectSrc) {
+        const stream = streams.value.find((item) => item.name === selectSrc)
+        if (stream) await selectStream(stream)
+      }
     }
   } catch (e: any) {
     errorMessage.value = e?.message || 'Failed to load streams'
@@ -306,21 +307,19 @@ async function loadStreams() {
   }
 }
 
-async function selectStream(name: string) {
-  currentStream.value = name
-  currentDate.value = ''
+async function selectStream(stream: api.Recording) {
+  currentStream.value = stream
+  currentDate.value = null
   files.value = []
   currentFile.value = null
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await api.getRecordings(name)
+    const res = await api.getRecordings(stream.path)
     if (Array.isArray(res)) {
       dates.value = res
-        .filter((f: any) => !f.is_file)
-        .map((f: any) => f.name)
-        .sort()
-        .reverse()
+        .filter((item) => !item.is_file)
+        .sort((a, b) => b.name.localeCompare(a.name))
     }
   } catch (e: any) {
     errorMessage.value = e?.message || 'Failed to load dates'
@@ -329,21 +328,20 @@ async function selectStream(name: string) {
   }
 }
 
-async function selectDate(date: string) {
+async function selectDate(date: api.Recording) {
   currentDate.value = date
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await api.getRecordings(`${currentStream.value}/${date}`)
+    const res = await api.getRecordings(date.path)
     if (Array.isArray(res)) {
       files.value = res
-        .filter((f: any) => f.is_file && f.name.endsWith('.mp4'))
-        .sort((a: any, b: any) => b.name.localeCompare(a.name))
-        .map((f: any) => {
-          const thumbName = f.name.replace(/\.mp4$/i, '.thumb')
-          const thumbPath = `${currentStream.value}/${date}/${thumbName}`
+        .filter((item) => item.is_file && item.name.endsWith('.mp4'))
+        .sort((a, b) => b.name.localeCompare(a.name))
+        .map((item) => {
+          const thumbPath = item.path.replace(/\.mp4$/i, '.thumb')
           return {
-            ...f,
+            ...item,
             thumbUrl: api.getRecordingFileUrl(thumbPath),
           } as RecordingFileItem
         })
@@ -357,9 +355,7 @@ async function selectDate(date: string) {
 
 function playFile(file: RecordingFileItem) {
   currentFile.value = file
-  videoUrl.value = api.getRecordingFileUrl(
-    `${currentStream.value}/${currentDate.value}/${file.name}`,
-  )
+  videoUrl.value = api.getRecordingFileUrl(file.path)
 }
 
 function releaseVideoPlayback() {
@@ -389,13 +385,13 @@ async function confirmDeleteFile() {
   deleteDialogOpen.value = false
   if (!target) return
   try {
-    if (currentFile.value?.name === target.name) {
+    if (currentFile.value?.path === target.path) {
       releaseVideoPlayback()
       currentFile.value = null
       videoUrl.value = ''
       await new Promise((resolve) => setTimeout(resolve, 80))
     }
-    const filePath = `${currentStream.value}/${currentDate.value}/${target.name}`
+    const filePath = target.path
     await api.deleteRecordingFile(filePath)
     const thumbPath = filePath.replace(/\.mp4$/i, '.thumb')
     if (thumbPath !== filePath) {
@@ -408,7 +404,7 @@ async function confirmDeleteFile() {
         }
       }
     }
-    await selectDate(currentDate.value)
+    if (currentDate.value) await selectDate(currentDate.value)
     currentFile.value = null
     videoUrl.value = ''
   } catch (e: any) {
@@ -420,11 +416,11 @@ async function confirmDeleteFile() {
 
 function navigateUp() {
   if (currentDate.value) {
-    currentDate.value = ''
+    currentDate.value = null
     files.value = []
     currentFile.value = null
   } else if (currentStream.value) {
-    currentStream.value = ''
+    currentStream.value = null
     dates.value = []
     loadStreams()
   }
@@ -432,28 +428,25 @@ function navigateUp() {
 
 function refreshCurrent() {
   if (currentDate.value) {
-    selectDate(currentDate.value)
+    if (currentDate.value) selectDate(currentDate.value)
     return
   }
   if (currentStream.value) {
-    selectStream(currentStream.value)
+    if (currentStream.value) selectStream(currentStream.value)
     return
   }
   loadStreams()
 }
 
 onMounted(() => {
-  loadStreams()
-  if (route.query.src) {
-    selectStream(route.query.src as string)
-  }
+  loadStreams(typeof route.query.src === 'string' ? route.query.src : undefined)
 })
 
 watch(
   () => route.query.src,
   (newSrc) => {
-    if (newSrc && newSrc !== currentStream.value) {
-      selectStream(newSrc as string)
+    if (typeof newSrc === 'string' && newSrc !== currentStream.value?.name) {
+      loadStreams(newSrc)
     }
   },
 )

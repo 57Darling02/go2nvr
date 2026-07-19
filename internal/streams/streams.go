@@ -22,9 +22,11 @@ func Init() {
 
 	log = app.GetLogger("streams")
 
+	streamsMu.Lock()
 	for name, item := range cfg.Streams {
 		streams[name] = NewStream(item)
 	}
+	streamsMu.Unlock()
 
 	api.HandleFunc("api/streams", apiStreams)
 	api.HandleFunc("api/streams.dot", apiStreamsDOT)
@@ -141,11 +143,11 @@ var log zerolog.Logger
 // streams map
 
 var streams = map[string]*Stream{}
-var streamsMu sync.Mutex
+var streamsMu sync.RWMutex
 
 func Get(name string) *Stream {
-	streamsMu.Lock()
-	defer streamsMu.Unlock()
+	streamsMu.RLock()
+	defer streamsMu.RUnlock()
 	return streams[name]
 }
 
@@ -156,21 +158,38 @@ func Delete(name string) {
 }
 
 func GetAllNames() []string {
-	streamsMu.Lock()
+	streamsMu.RLock()
 	names := make([]string, 0, len(streams))
 	for name := range streams {
 		names = append(names, name)
 	}
-	streamsMu.Unlock()
+	streamsMu.RUnlock()
 	return names
 }
 
+// Snapshot returns a stable copy of the stream name map. The streams
+// themselves remain live objects, but map iteration and lookups can safely use
+// the returned copy after the lock has been released.
+func Snapshot() map[string]*Stream {
+	streamsMu.RLock()
+	defer streamsMu.RUnlock()
+
+	items := make(map[string]*Stream, len(streams))
+	for name, stream := range streams {
+		items[name] = stream
+	}
+	return items
+}
+
 func GetAllSources() map[string][]string {
-	streamsMu.Lock()
+	// Keep the registry locked while reading sources: Patch updates a stream's
+	// producer URL under the same lock.
+	streamsMu.RLock()
+	defer streamsMu.RUnlock()
+
 	sources := make(map[string][]string, len(streams))
 	for name, stream := range streams {
 		sources[name] = stream.Sources()
 	}
-	streamsMu.Unlock()
 	return sources
 }

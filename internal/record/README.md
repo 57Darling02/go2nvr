@@ -1,23 +1,27 @@
 # Record Module
 
-`internal/record` provides local recording, prebuffer, trigger-driven auto start/stop, and file management APIs.
+`internal/record` is a lightweight NVR recorder layered on the in-tree go2rtc stream core.
 
-## Architecture
+## Design
 
-- `record.go`: module init, recorder lifecycle, HTTP APIs.
-- `recorder.go`: RTP ingest, prebuffer queue, MP4/MJPEG write, snapshot/thumbnail pipeline.
-- `trigger_bind.go`: bridge between recording layer and trigger manager.
+- A per-stream session owns attach/detach, manual and trigger intent, retry state, and the bound `*streams.Stream` pointer.
+- Sessions reconcile every second. Reconnecting a producer keeps its recorder; deleting and recreating a stream closes the old recorder before a new one attaches.
+- RTP callbacks only clone once and enqueue into a byte-bounded mailbox. One writer goroutine owns the muxer, segment file, flush, sync, and close.
+- On queue or global-memory pressure, the recorder drains accepted packets, closes the current readable segment, reports `backpressure`, and retries with `1s, 2s, 5s, 10s, 30s, 60s` backoff.
+- Prebuffering requires a recent keyframe and is capped by both time and bytes. A stream without a usable keyframe does not accumulate undecodable history.
+- Thumbnail conversion uses a shared latest-only worker pool and a five-second FFmpeg deadline.
 
-Trigger-specific architecture, detector contract, lifecycle, and contributor quickstart are documented in:
-
-- [`internal/record/trigger/README.md`](./trigger/README.md)
-
-## Config (YAML)
+## YAML Configuration
 
 ```yaml
 record:
   dir: ./records
   retention: 7
+  limits:
+    memory_mb: 256
+    prebuffer_mb: 32
+    writer_queue_mb: 16
+    snapshot_workers: 1
   rules:
     - src: camera1
       prebuffer: 10
@@ -29,133 +33,74 @@ record:
         min_hits: 1
 ```
 
-### Rule fields
+`limits` is deployment-level configuration. It is intentionally absent from the Web UI and `/api/record/config`.
 
-- `src`: stream name.
-- `prebuffer`: seconds to keep before recording starts.
-- `trigger_id`: detector id. `<=0` means trigger disabled.
-- `trigger_interval`: polling interval in milliseconds. Default: `250`.
-- `trigger_params`: detector-specific params (`map[string]any`).
+- `memory_mb` is the shared cap for prebuffer, writer queues, and snapshot work.
+- `prebuffer_mb` is the per-recorder prebuffer cap.
+- `writer_queue_mb` is the per-recorder mailbox cap.
+- `snapshot_workers` is in the range `1..4`.
+- `memory_mb` must be at least `prebuffer_mb + writer_queue_mb + 2`. Invalid limits are replaced with the defaults and logged.
 
-### Module fields
+`dir` defaults to `./records`; `retention` defaults to seven days. Rules are persisted as one transaction, and in-memory configuration changes only after persistence succeeds.
 
-- `dir`: recording root directory. Empty or `/` falls back to `./records`.
-- `retention`: days to keep date folders. `<=0` falls back to `7`.
+## Storage Layout
 
-## HTTP APIs
+New recordings use only this layout:
 
-### 1) Recording state and control
+```text
+<record.dir>/streams/<sha256(normalized-source)>/
+  metadata.json
+  YYYY-MM-DD/
+    <unique>.mp4
+    <unique>.thumb
+```
+
+`metadata.json` records the layout version, source name, and storage ID. Segment names use nanoseconds and exclusive creation, so repeated starts cannot overwrite a file.
+
+Old pre-layout recordings are intentionally not migrated or exposed after upgrade. Retention scans only the `streams/` layout.
+
+## HTTP API
+
+### Recording state and control
 
 - `GET /api/record`
-  - list all stream states.
 - `GET /api/record?src={stream}`
-  - show one stream state.
 - `POST /api/record?src={stream}&action=start|stop`
-  - manual start/stop.
 
-State payload example:
+`status` remains compatible with existing clients:
 
-```json
-{
-  "name": "camera1",
-  "status": "recording",
-  "file": "records/camera1/2026-03-07/09-12-30.mp4",
-  "duration": "43s",
-  "prebuffer": 10,
-  "trigger_id": 1,
-  "trigger_key": "simple_diff",
-  "trigger_name": "Simple Diff"
-}
-```
+- `recording`: actively writing a segment.
+- `idle`: attached and ready, including prebuffer/trigger sessions.
+- `stopped`: no recorder is attached.
 
-`status` meanings:
-
-- `recording`: actively writing a file.
-- `idle`: recorder exists but not writing.
-- `stopped`: no recorder attached.
-
-### 2) Rule management
-
-- `GET /api/record/rules`
-  - list all rules.
-- `GET /api/record/rules?src={stream}`
-  - get one rule.
-- `POST /api/record/rules`
-  - upsert a rule.
-- `DELETE /api/record/rules?src={stream}`
-  - remove a rule and stop its trigger worker.
-
-Upsert example:
+The state may additionally include:
 
 ```json
 {
-  "src": "camera1",
-  "prebuffer": 10,
-  "trigger_id": 1,
-  "trigger_interval": 250,
-  "trigger_params": {
-    "threshold": 16,
-    "post_sec": 12,
-    "min_hits": 2
-  }
+  "phase": "recording",
+  "desired_recording": true,
+  "last_error": "backpressure",
+  "retry_at": "2026-07-19T12:00:01Z",
+  "stop_reason": "backpressure",
+  "storage_id": "<sha256>"
 }
 ```
 
-Notes:
+Start or stop returns `200` when complete, `202` while attaching, draining, or backing off, `404` for an unknown stream, and `503` when an attached recorder cannot become available.
 
-- Rule is persisted first. If stream is temporarily unavailable, API still returns `200` and may include `attach_error`.
-- `src` is normalized (trailing query part after `?` is removed).
+### Rules and module config
 
-### 3) Trigger metadata
-
+- `GET|POST|DELETE /api/record/rules`
 - `GET /api/record/triggers`
-  - list all registered detectors and parameter schema.
+- `GET|POST /api/record/config`
 
-Example:
+Rule fields are `src`, `prebuffer`, `trigger_id`, `trigger_interval`, and `trigger_params`. The module-config API accepts only `dir` and `retention`.
 
-```json
-[
-  {
-    "id": 1,
-    "key": "simple_diff",
-    "name": "Simple Diff",
-    "params": [
-      { "key": "threshold", "type": "number", "default": 14, "min": 1, "max": 255, "tip": "Average grayscale diff threshold treated as motion." },
-      { "key": "post_sec", "type": "number", "default": 10, "min": 1, "tip": "Keep recording for N seconds after last detected motion." },
-      { "key": "min_hits", "type": "number", "default": 1, "min": 1, "tip": "Consecutive motion hits required before entering active state." }
-    ]
-  }
-]
-```
+### File management
 
-### 4) Module config API
+- `GET /api/record?path=.` lists sources.
+- `GET /api/record?path=streams/{storage_id}` lists dates.
+- `GET /api/record?path=streams/{storage_id}/{YYYY-MM-DD}` lists segments.
+- `GET|DELETE /api/record/file?path=streams/{storage_id}/{YYYY-MM-DD}/{file}` serves or deletes a media file.
 
-- `GET /api/record/config`
-- `POST /api/record/config`
-
-Body:
-
-```json
-{
-  "dir": "./records",
-  "retention": 7
-}
-```
-
-### 5) File management
-
-- `GET /api/record?path={rel_dir}`: list directory items.
-- `GET /api/record/file?path={rel_file}`: stream file.
-- `GET /api/record/file?path={rel_file}&download=1`: download file.
-- `DELETE /api/record/file?path={rel_file}`: delete file.
-
-Security:
-
-- Paths are constrained under record `dir`.
-- Traversal outside base dir is rejected.
-
-## Trigger docs entry
-
-To avoid doc drift, trigger behavior and extension guide are maintained only in:
-
-- [`internal/record/trigger/README.md`](./trigger/README.md)
+List entries provide stable `path` and display `name`. The API rejects traversal, legacy layouts, symlinks, metadata files, and non-recording extensions. `.mp4`, `.mjpeg`, and their `.thumb` companions are the only accepted files.

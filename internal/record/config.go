@@ -1,6 +1,7 @@
 package record
 
 import (
+	"errors"
 	"os"
 	"sync"
 	"time"
@@ -16,6 +17,8 @@ type recordRule struct {
 	TriggerParams   map[string]interface{} `yaml:"trigger_params" json:"trigger_params,omitempty"`
 }
 
+// recordConfig deliberately excludes Limits. Limits are deployment-level YAML
+// settings and must not be changed by the dashboard/API.
 type recordConfig struct {
 	Dir       string `json:"dir"`
 	Retention int    `json:"retention"`
@@ -25,6 +28,7 @@ type recordModuleConfig struct {
 	Dir       string       `yaml:"dir"`
 	Retention int          `yaml:"retention"`
 	Rules     []recordRule `yaml:"rules"`
+	Limits    recordLimits `yaml:"limits"`
 }
 
 var cfg struct {
@@ -36,6 +40,7 @@ var confMu sync.RWMutex
 func initConfig() {
 	cfg.Mod.Dir = "./records"
 	cfg.Mod.Retention = 7
+	cfg.Mod.Limits = defaultRecordLimits
 	app.LoadConfig(&cfg)
 
 	if cfg.Mod.Dir == "" || cfg.Mod.Dir == "/" {
@@ -44,11 +49,19 @@ func initConfig() {
 	if cfg.Mod.Retention <= 0 {
 		cfg.Mod.Retention = 7
 	}
+	limits, valid := normalizeRecordLimits(cfg.Mod.Limits)
+	if !valid {
+		log.Warn().Msg("[record] invalid record.limits; using defaults")
+	}
+	cfg.Mod.Limits = limits
+	recordMemory.setLimit(limits.memoryBytes())
+	snapshots.configure(limits.SnapshotWorkers)
 
-	_ = os.MkdirAll(cfg.Mod.Dir, 0755)
+	if err := os.MkdirAll(cfg.Mod.Dir, 0755); err != nil {
+		log.Warn().Err(err).Str("dir", cfg.Mod.Dir).Msg("[record] create record directory")
+	}
 }
 
-// getRule returns a copy of the rule for a given source.
 func getRule(src string) (recordRule, bool) {
 	confMu.RLock()
 	defer confMu.RUnlock()
@@ -70,108 +83,83 @@ func getRules() []recordRule {
 	return rules
 }
 
-// upsertRule updates an existing rule or appends a new one.
-// The in-memory state is rolled back if config patching fails.
 func upsertRule(rule recordRule) error {
+	if rule.Src == "" {
+		return errors.New("record source is required")
+	}
 	if rule.Prebuffer < 0 {
 		rule.Prebuffer = 0
 	}
-
-	confMu.Lock()
-	prev := cloneRecordModule(cfg.Mod)
-	next := cloneRecordModule(cfg.Mod)
-	found := false
-	for i, item := range next.Rules {
-		if item.Src == rule.Src {
-			next.Rules[i] = rule
-			found = true
-			break
+	return updateRecordModule(func(next *recordModuleConfig) error {
+		for i, current := range next.Rules {
+			if current.Src == rule.Src {
+				next.Rules[i] = cloneRecordRule(rule)
+				return nil
+			}
 		}
-	}
-	if !found {
-		next.Rules = append(next.Rules, rule)
-	}
-	cfg.Mod = next
-	confMu.Unlock()
-
-	if err := patchRecordModule(next); err != nil {
-		confMu.Lock()
-		cfg.Mod = prev
-		confMu.Unlock()
-		return err
-	}
-	return nil
+		next.Rules = append(next.Rules, cloneRecordRule(rule))
+		return nil
+	})
 }
 
-// removeRule deletes the rule for src if present.
-// The in-memory state is rolled back if config patching fails.
 func removeRule(src string) error {
-	confMu.Lock()
-	prev := cloneRecordModule(cfg.Mod)
-	next := cloneRecordModule(cfg.Mod)
-	idx := -1
-	for i, rule := range next.Rules {
-		if rule.Src == src {
-			idx = i
+	return updateRecordModule(func(next *recordModuleConfig) error {
+		for i, rule := range next.Rules {
+			if rule.Src != src {
+				continue
+			}
+			copy(next.Rules[i:], next.Rules[i+1:])
+			next.Rules = next.Rules[:len(next.Rules)-1]
 			break
 		}
-	}
-	if idx >= 0 {
-		copy(next.Rules[idx:], next.Rules[idx+1:])
-		next.Rules = next.Rules[:len(next.Rules)-1]
-	}
-	cfg.Mod = next
-	confMu.Unlock()
-
-	if err := patchRecordModule(next); err != nil {
-		confMu.Lock()
-		cfg.Mod = prev
-		confMu.Unlock()
-		return err
-	}
-	return nil
+		return nil
+	})
 }
 
 func getRecordConfig() recordConfig {
 	confMu.RLock()
 	defer confMu.RUnlock()
-	return recordConfig{
-		Dir:       cfg.Mod.Dir,
-		Retention: cfg.Mod.Retention,
-	}
+	return recordConfig{Dir: cfg.Mod.Dir, Retention: cfg.Mod.Retention}
 }
 
 func updateRecordConfig(dir *string, retention *int) error {
-	confMu.Lock()
-	prev := cloneRecordModule(cfg.Mod)
-	next := cloneRecordModule(cfg.Mod)
-	if dir != nil {
-		if *dir == "" || *dir == "/" {
-			next.Dir = "./records"
-		} else {
-			next.Dir = *dir
+	return updateRecordModule(func(next *recordModuleConfig) error {
+		if dir != nil {
+			if *dir == "" || *dir == "/" {
+				next.Dir = "./records"
+			} else {
+				next.Dir = *dir
+			}
+			if err := os.MkdirAll(next.Dir, 0755); err != nil {
+				return err
+			}
 		}
-		if err := os.MkdirAll(next.Dir, 0755); err != nil {
-			confMu.Unlock()
-			return err
+		if retention != nil {
+			if *retention <= 0 {
+				next.Retention = 7
+			} else {
+				next.Retention = *retention
+			}
 		}
-	}
-	if retention != nil {
-		if *retention <= 0 {
-			next.Retention = 7
-		} else {
-			next.Retention = *retention
-		}
-	}
-	cfg.Mod = next
-	confMu.Unlock()
+		return nil
+	})
+}
 
-	if err := patchRecordModule(next); err != nil {
-		confMu.Lock()
-		cfg.Mod = prev
-		confMu.Unlock()
+// updateRecordModule holds the record lock through persistence, so a failed
+// write never exposes a candidate config and concurrent record updates cannot
+// roll one another back.
+func updateRecordModule(update func(*recordModuleConfig) error) error {
+	confMu.Lock()
+	defer confMu.Unlock()
+
+	next := cloneRecordModule(cfg.Mod)
+	if err := update(&next); err != nil {
 		return err
 	}
+	if err := patchRecordModule(next); err != nil {
+		return err
+	}
+	cfg.Mod = next
 	return nil
 }
 
@@ -233,16 +221,12 @@ func cloneRecordRule(in recordRule) recordRule {
 }
 
 func patchRecordModule(mod recordModuleConfig) error {
-	if err := app.PatchConfig([]string{"record", "dir"}, mod.Dir); err != nil {
-		return err
+	if mod.Rules == nil {
+		mod.Rules = []recordRule{}
 	}
-	if err := app.PatchConfig([]string{"record", "retention"}, mod.Retention); err != nil {
-		return err
-	}
-
-	rules := mod.Rules
-	if rules == nil {
-		rules = []recordRule{}
-	}
-	return app.PatchConfig([]string{"record", "rules"}, rules)
+	return app.PatchConfigBatch(
+		app.ConfigPatch{Path: []string{"record", "dir"}, Value: mod.Dir},
+		app.ConfigPatch{Path: []string{"record", "retention"}, Value: mod.Retention},
+		app.ConfigPatch{Path: []string{"record", "rules"}, Value: mod.Rules},
+	)
 }

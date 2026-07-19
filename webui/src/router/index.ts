@@ -1,8 +1,9 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { applicationBasePath } from '@/lib/base-url'
 import DashboardView from '@/views/DashboardView.vue'
 
 const router = createRouter({
-  history: createWebHashHistory(import.meta.env.BASE_URL),
+  history: createWebHashHistory(applicationBasePath()),
   routes: [
     {
       path: '/',

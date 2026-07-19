@@ -257,6 +257,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area'
 import * as api from '@/services/api'
+import { apiURL } from '@/lib/base-url'
 
 const version = ref('Loading...')
 const schemes = ref<string[]>([])
@@ -435,7 +436,7 @@ async function checkConnection() {
   try {
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 2000)
-    await fetch('/api', { signal: controller.signal })
+    await fetch(apiURL(), { signal: controller.signal })
     clearTimeout(timeoutId)
     isServerOffline.value = false
     loadInfo()

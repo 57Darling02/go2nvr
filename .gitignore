@@ -11,6 +11,9 @@ go2rtc_win*
 
 /go2rtc
 /go2rtc.exe
+/go2nvr
+/go2nvr.exe
+go2nvr_*
 
 0_test.go
 
@@ -25,6 +28,6 @@ CLAUDE.md
 
 /records
 
-/www/**
-!/www/
-!/www/static.go
+# Generated NVR UI; keep only the go:embed sentinel in source control.
+/internal/nvrui/dist/*
+!/internal/nvrui/dist/.gitkeep

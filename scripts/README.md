@@ -1,8 +1,8 @@
 # Scripts
 
-This folder contains a script for building binaries for all platforms.
+This folder contains scripts for building go2nvr binaries.
 
-The project has no `CGO` dependencies, so building is as simple as possible using the `go build` command.
+Use `./scripts/build-go2nvr.sh` for a source build. It builds the embedded dashboard first, then invokes `go build` with any arguments passed to it. On Windows, use `scripts\\build-go2nvr.cmd` for the same flow. `build.sh` and `build.cmd` build the dashboard once before their multi-platform packaging steps.
 
 The project has to use the latest versions of go due to dependencies on third-party go libraries. Such as `pion/webrtc` or `golang.org/x`. Unfortunately, this breaks compatibility with older versions of operating systems.
 

@@ -6,7 +6,7 @@
       <div
         class="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-gray-800"
       >
-        <img src="/favicon.ico" alt="Go2NVR" class="w-8 h-8" />
+        <img :src="assetURL('favicon.ico')" alt="Go2NVR" class="w-8 h-8" />
         <span class="hidden md:block ml-3 font-bold text-lg tracking-wide">Go2NVR</span>
       </div>
 
@@ -34,7 +34,7 @@
       <div class="p-4">
         <div class="flex items-center justify-center md:justify-start text-gray-500 text-xs">
           <Info class="w-4 h-4 md:mr-2" />
-          <span class="hidden md:block">{{ appVersion }}</span>
+          <span v-if="appVersion" class="hidden md:block">{{ appVersion }}</span>
         </div>
       </div>
     </aside>
@@ -51,6 +51,7 @@
 
 <script setup lang="ts">
 import type { Component } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { LayoutGrid, Settings, Info, Clock, Server, SlidersHorizontal } from 'lucide-vue-next'
 import { Button } from '@/components/ui/button'
@@ -58,6 +59,8 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { assetURL } from '@/lib/base-url'
+import { getServerInfo } from '@/services/api'
 
 type NavItem = {
   to: string
@@ -66,7 +69,11 @@ type NavItem = {
 }
 
 const route = useRoute()
-const appVersion = import.meta.env.VITE_APP_VERSION || 'dev'
+const appVersion = ref('')
+
+onMounted(async () => {
+  appVersion.value = (await getServerInfo()).version || ''
+})
 
 const navItems: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid },

@@ -5,10 +5,25 @@
 # https://packages.debian.org/trixie/ffmpeg
 ARG DEBIAN_VERSION="trixie-slim"
 ARG GO_VERSION="1.25-bookworm"
+ARG NODE_VERSION="22-bookworm-slim"
 
 
-# 1. Build go2rtc binary
+# 1. Build the embedded Web UI
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION} AS webui
+
+WORKDIR /build
+
+COPY webui/package.json webui/pnpm-lock.yaml webui/pnpm-workspace.yaml ./webui/
+RUN corepack enable && pnpm --dir webui install --frozen-lockfile
+
+COPY webui ./webui
+COPY scripts/build-webui.sh ./scripts/build-webui.sh
+RUN ./scripts/build-webui.sh
+
+
+# 2. Build go2nvr binary
 FROM --platform=$BUILDPLATFORM golang:${GO_VERSION} AS build
+ARG APP_VERSION
 ARG TARGETPLATFORM
 ARG TARGETOS
 ARG TARGETARCH
@@ -23,10 +38,14 @@ COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/root/.cache/go-build go mod download
 
 COPY . .
-RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=0 go build -ldflags "-s -w" -trimpath
+COPY --from=webui /build/internal/nvrui/dist ./internal/nvrui/dist
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    ldflags="-s -w"; \
+    if [ -n "${APP_VERSION:-}" ]; then ldflags="$ldflags -X github.com/AlexxIT/go2rtc/internal/app.VersionOverride=${APP_VERSION#v}"; fi; \
+    CGO_ENABLED=0 GO2NVR_SKIP_WEBUI=1 ./scripts/build-go2nvr.sh -ldflags "$ldflags" -trimpath -o go2nvr
 
 
-# 2. Final image
+# 3. Final image
 FROM debian:${DEBIAN_VERSION}
 
 # Prepare apt for buildkit cache
@@ -47,7 +66,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked --mount=type=cache,t
         libasound2-plugins && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
-COPY --from=build /build/go2rtc /usr/local/bin/
+COPY --from=build /build/go2nvr /usr/local/bin/
 
 EXPOSE 1984 8554 8555 8555/udp
 ENTRYPOINT ["/usr/bin/tini", "--"]
@@ -57,4 +76,4 @@ WORKDIR /config
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,video,utility
 
-CMD ["go2rtc", "-config", "/config/go2rtc.yaml"]
+CMD ["go2nvr", "-config", "/config/go2nvr.yaml"]

@@ -9,10 +9,12 @@ import (
 )
 
 func TestRecursion(t *testing.T) {
+	HandleFunc("test", func(url string) (core.Producer, error) { return nil, nil })
+
 	// create stream with some source
-	stream1, err := New("from_yaml", "does_not_matter")
+	stream1, err := New("from_yaml", "test:does_not_matter")
 	require.NoError(t, err)
-	require.Len(t, streams, 1)
+	require.Len(t, Snapshot(), 1)
 
 	// ask another unnamed stream that links go2rtc
 	query, err := url.ParseQuery("src=rtsp://localhost:8554/from_yaml?video")
@@ -24,11 +26,12 @@ func TestRecursion(t *testing.T) {
 	require.Equal(t, stream1, stream2)
 	// check stream urls is same
 	require.Equal(t, stream1.producers[0].url, stream2.producers[0].url)
-	require.Len(t, streams, 2)
+	require.Len(t, Snapshot(), 2)
 }
 
 func TestTempate(t *testing.T) {
 	HandleFunc("rtsp", func(url string) (core.Producer, error) { return nil, nil }) // bypass HasProducer
+	HandleFunc("ffmpeg", func(url string) (core.Producer, error) { return nil, nil })
 
 	// config from yaml
 	stream1, err := New("camera.from_hass", "ffmpeg:{input}#video=copy")
@@ -39,4 +42,23 @@ func TestTempate(t *testing.T) {
 
 	require.Equal(t, stream1, stream2)
 	require.Equal(t, "ffmpeg:rtsp://example.com#video=copy", stream1.producers[0].url)
+}
+
+func TestSnapshotCopiesStreamMap(t *testing.T) {
+	streamsMu.Lock()
+	original := streams
+	streams = map[string]*Stream{"camera": new(Stream)}
+	streamsMu.Unlock()
+	t.Cleanup(func() {
+		streamsMu.Lock()
+		streams = original
+		streamsMu.Unlock()
+	})
+
+	snapshot := Snapshot()
+	delete(snapshot, "camera")
+	require.NotNil(t, Get("camera"))
+
+	Delete("camera")
+	require.Nil(t, Get("camera"))
 }

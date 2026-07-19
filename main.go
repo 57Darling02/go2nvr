@@ -31,6 +31,7 @@ import (
 	"github.com/AlexxIT/go2rtc/internal/multitrans"
 	"github.com/AlexxIT/go2rtc/internal/nest"
 	"github.com/AlexxIT/go2rtc/internal/ngrok"
+	"github.com/AlexxIT/go2rtc/internal/nvrui"
 	"github.com/AlexxIT/go2rtc/internal/onvif"
 	"github.com/AlexxIT/go2rtc/internal/pinggy"
 	"github.com/AlexxIT/go2rtc/internal/record"
@@ -59,7 +60,7 @@ func main() {
 		if app.VersionOverride != "" {
 			app.Version = app.VersionOverride
 		} else {
-			app.Version = "1.9.14"
+			app.Version = "0.3.0"
 		}
 	}
 
@@ -69,9 +70,9 @@ func main() {
 	}
 
 	modules := []module{
-		{"", app.Init},    // init config and logs
-		{"api", api.Init}, // init API before all others
-		{"ws", ws.Init},   // init WS API endpoint
+		{"", app.Init}, // init config and logs
+		{"api", func() { api.InitWithStaticFS(nvrui.StaticFS()) }}, // init API before all others
+		{"ws", ws.Init}, // init WS API endpoint
 		{"", streams.Init},
 		// Main sources and servers
 		{"http", http.Init},     // rtsp source, HTTP server

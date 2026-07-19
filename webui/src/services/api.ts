@@ -1,3 +1,5 @@
+import { applicationURL } from '@/lib/base-url'
+
 export interface StreamProducer {
   url?: string
   [key: string]: any
@@ -19,6 +21,7 @@ export interface StreamInfo {
 
 export interface Recording {
   name: string
+  path: string
   is_file?: boolean
   size?: number
   mod_time?: number
@@ -41,7 +44,7 @@ export interface ServerInfo {
   [key: string]: any
 }
 
-const API_BASE = ''
+const API_BASE = applicationURL().replace(/\/$/, '')
 
 async function getErrorMessage(res: Response, fallback: string): Promise<string> {
   const status = `${res.status}${res.statusText ? ` ${res.statusText}` : ''}`

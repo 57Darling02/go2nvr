@@ -1,8 +1,8 @@
 openapi: 3.1.0
 
 info:
-  title: go2rtc
-  version: 1.9.13
+  title: go2nvr
+  version: 0.3.0
   license: { name: MIT,url: https://opensource.org/licenses/MIT }
   contact: { url: https://github.com/AlexxIT/go2rtc }
   description: |
@@ -31,6 +31,7 @@ tags:
   - name: WebTorrent
     description: "[Module: WebTorrent](https://github.com/AlexxIT/go2rtc#module-webtorrent)"
   - name: FFmpeg
+  - name: Record
   - name: Debug
 
 components:
@@ -108,6 +109,42 @@ components:
         application/json:
           example: { share: AKDypPy4zz, pwd: H0Km1HLTTP }
 
+  schemas:
+    RecordState:
+      type: object
+      required: [ name, status, phase, desired_recording, storage_id ]
+      properties:
+        name: { type: string, example: camera1 }
+        status: { type: string, enum: [ stopped, idle, recording ] }
+        phase: { type: string, enum: [ stopped, unavailable, attaching, draining, idle, recording, backoff ] }
+        desired_recording: { type: boolean }
+        file: { type: string, example: streams/4f3f.../2026-07-19/1784462400000000000.mp4 }
+        duration: { type: string, example: 43s }
+        prebuffer: { type: integer, minimum: 0 }
+        trigger_id: { type: integer }
+        last_error: { type: string }
+        retry_at: { type: string, format: date-time }
+        stop_reason: { type: string, example: backpressure }
+        storage_id: { type: string, description: SHA-256 of the normalized stream source }
+    RecordFileItem:
+      type: object
+      required: [ name, path, is_file ]
+      properties:
+        name: { type: string, example: camera1 }
+        path: { type: string, example: streams/4f3f.../2026-07-19/1784462400000000000.mp4 }
+        is_file: { type: boolean }
+        size: { type: integer, format: int64 }
+        mod_time: { type: integer, format: int64 }
+    RecordRule:
+      type: object
+      required: [ src ]
+      properties:
+        src: { type: string, example: camera1 }
+        prebuffer: { type: integer, minimum: 0 }
+        trigger_id: { type: integer }
+        trigger_interval: { type: integer, minimum: 1 }
+        trigger_params: { type: object, additionalProperties: true }
+
 paths:
   /api:
     get:
@@ -166,7 +203,7 @@ paths:
           content:
             application/jsonlines:
               example: |
-                {"level":"info","version":"1.9.13","platform":"linux/amd64","revision":"dfe4755","time":1766841087331,"message":"go2rtc"}
+                {"level":"info","version":"0.3.0","platform":"linux/amd64","revision":"dfe4755","time":1766841087331,"message":"go2nvr"}
     delete:
       summary: Clear in-memory logs buffer
       tags: [ Application ]
@@ -776,6 +813,167 @@ paths:
         default:
           description: ""
 
+
+  /api/record:
+    get:
+      summary: Get recording states or list new-layout recordings
+      tags: [ Record ]
+      parameters:
+        - name: src
+          in: query
+          required: false
+          schema: { type: string }
+        - name: path
+          in: query
+          required: false
+          description: Constrained logical path. `.` lists stream sources.
+          schema: { type: string, example: streams/4f3f.../2026-07-19 }
+      responses:
+        "200":
+          description: Recording state or file items
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/RecordState"
+                  - type: array
+                    items: { $ref: "#/components/schemas/RecordState" }
+                  - type: array
+                    items: { $ref: "#/components/schemas/RecordFileItem" }
+        "403": { description: Invalid or unsafe logical path }
+        "404": { description: Stream not found }
+    post:
+      summary: Start or stop a recording
+      tags: [ Record ]
+      parameters:
+        - name: src
+          in: query
+          required: true
+          schema: { type: string }
+        - name: action
+          in: query
+          required: true
+          schema: { type: string, enum: [ start, stop ] }
+      responses:
+        "200":
+          description: Requested operation completed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordState" }
+        "202":
+          description: Recorder is attaching, draining, or backing off
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RecordState" }
+        "404": { description: Stream not found }
+        "503": { description: Recorder unavailable }
+
+  /api/record/file:
+    get:
+      summary: Stream a recording or thumbnail from the new layout
+      tags: [ Record ]
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema: { type: string, example: streams/4f3f.../2026-07-19/1784462400000000000.mp4 }
+        - name: download
+          in: query
+          required: false
+          schema: { type: string, enum: [ "1" ] }
+      responses:
+        "200": { description: Recording content }
+        "403": { description: Invalid, legacy, or unsafe path }
+        "404": { description: Recording not found }
+    delete:
+      summary: Delete a recording or thumbnail
+      tags: [ Record ]
+      parameters:
+        - name: path
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Deleted }
+        "403": { description: Invalid, legacy, or unsafe path }
+        "404": { description: Recording not found }
+
+  /api/record/rules:
+    get:
+      summary: Get recording rules
+      tags: [ Record ]
+      parameters:
+        - name: src
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Rule or rules
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/RecordRule"
+                  - type: array
+                    items: { $ref: "#/components/schemas/RecordRule" }
+        "404": { description: Rule not found }
+    post:
+      summary: Create or update a recording rule
+      tags: [ Record ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RecordRule" }
+      responses:
+        "200": { description: Rule persisted }
+    delete:
+      summary: Delete a recording rule
+      tags: [ Record ]
+      parameters:
+        - name: src
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Rule deleted }
+
+  /api/record/triggers:
+    get:
+      summary: List recording trigger detectors
+      tags: [ Record ]
+      responses:
+        "200": { description: Trigger metadata }
+
+  /api/record/config:
+    get:
+      summary: Get UI-managed recording configuration
+      tags: [ Record ]
+      responses:
+        "200":
+          description: Directory and retention only; limits remain YAML-only
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  dir: { type: string }
+                  retention: { type: integer, minimum: 1 }
+    post:
+      summary: Update UI-managed recording configuration
+      tags: [ Record ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                dir: { type: string }
+                retention: { type: integer, minimum: 1 }
+      responses:
+        "200": { description: Configuration persisted }
 
   /api/ffmpeg:
     post:

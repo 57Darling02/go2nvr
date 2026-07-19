@@ -2,6 +2,7 @@ package ffmpeg
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"net/url"
 	"os/exec"
@@ -18,16 +19,30 @@ func JPEGWithQuery(b []byte, query url.Values) ([]byte, error) {
 }
 
 func JPEGWithScale(b []byte, width, height int) ([]byte, error) {
+	return JPEGWithScaleContext(context.Background(), b, width, height)
+}
+
+// JPEGWithScaleContext converts one image while allowing callers to bound the
+// external FFmpeg process lifetime.
+func JPEGWithScaleContext(ctx context.Context, b []byte, width, height int) ([]byte, error) {
 	args := defaultArgs()
 	args.AddFilter(fmt.Sprintf("scale=%d:%d", width, height))
-	return transcode(b, args.String())
+	return transcodeContext(ctx, b, args.String())
 }
 
 func transcode(b []byte, args string) ([]byte, error) {
+	return transcodeContext(context.Background(), b, args)
+}
+
+func transcodeContext(ctx context.Context, b []byte, args string) ([]byte, error) {
 	cmdArgs := shell.QuoteSplit(args)
-	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	cmd := exec.CommandContext(ctx, cmdArgs[0], cmdArgs[1:]...)
 	cmd.Stdin = bytes.NewBuffer(b)
-	return cmd.Output()
+	out, err := cmd.Output()
+	if ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	return out, err
 }
 
 func defaultArgs() *ffmpeg.Args {
