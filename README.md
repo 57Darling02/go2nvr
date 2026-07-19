@@ -28,7 +28,7 @@ go2nvr is not trying to be a heavy AI surveillance platform. It sits between a m
 - **Recording library**: browse, play, download, and delete recordings.
 - **Retention policy**: automatically remove old recordings by day count.
 - **TTS push**: convert text to speech and push it to IP Webcam or go2rtc backchannel targets.
-- **Small deployment footprint**: one process, no required Docker, database, queue, or external service for the core path.
+- **Small deployment footprint**: one native process, no database, queue, or external service for the core path.
 
 Optional tools such as FFmpeg can still be used when a stream needs special protocol or codec handling.
 
@@ -39,7 +39,7 @@ go2nvr fits small servers, NAS boxes, ARM devices, edge gateways, and low-power 
 - a lightweight NVR instead of a full surveillance stack;
 - RTSP, ONVIF, IP Webcam, phone camera, or mixed stream sources;
 - live preview, recording, playback, and file management from a browser;
-- a simple setup without Docker, a database, or AI inference services.
+- a simple native setup without a database or AI inference services.
 
 ## Screenshots
 
@@ -68,6 +68,8 @@ System configuration
 Download the binary for your platform:
 
 - [Latest release](https://github.com/57Darling02/go2nvr/releases/latest)
+
+go2nvr is distributed as native binaries. Docker images are not maintained.
 
 Linux, macOS, or FreeBSD example:
 
@@ -210,7 +212,7 @@ See [`internal/ttspush`](internal/ttspush/README.md) for parameters and target o
 | --- | --- | --- |
 | go2rtc | Media gateway | Adds recording, triggers, playback, file management, and TTS. |
 | MediaMTX | Media server | Adds NVR-oriented Web management and recording workflows. |
-| Frigate | AI NVR | Much lighter, without required AI inference or Docker. |
+| Frigate | AI NVR | Much lighter, without required AI inference. |
 | Shinobi / ZoneMinder | Full surveillance suite | Smaller scope for users who need core NVR features. |
 | tinyCam Monitor | Mobile monitoring app | Server-first Web UI and recording management. |
 

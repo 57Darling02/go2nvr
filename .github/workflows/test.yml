@@ -73,23 +73,3 @@ jobs:
 
           curl --fail --silent --show-error http://127.0.0.1:1985/nvr/favicon.ico > /dev/null
           curl --fail --silent --show-error http://127.0.0.1:1985/nvr/api > /dev/null
-
-  docker:
-    name: Docker ${{ matrix.name }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: default
-            file: docker/Dockerfile
-          - name: hardware
-            file: docker/hardware.Dockerfile
-          - name: rockchip
-            file: docker/rockchip.Dockerfile
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build Docker image
-        run: DOCKER_BUILDKIT=1 docker build --file "${{ matrix.file }}" --tag "go2nvr:test-${{ matrix.name }}" .
